@@ -111,6 +111,7 @@ class TeamService {
         const userConversations = await slackClient.users.conversations({
           user: userId,
           types: 'public_channel,private_channel',
+          exclude_archived: true,
           limit: 1000
         });
         userChannels = userConversations.channels || [];
@@ -132,6 +133,7 @@ class TeamService {
       try {
         const conversationsList = await slackClient.conversations.list({
           types: 'public_channel,private_channel',
+          exclude_archived: true,
           limit: 1000
         });
         appChannels = conversationsList.channels || [];
@@ -155,6 +157,11 @@ class TeamService {
         if (appChannelIds.has(userChannel.id)) {
           // This channel is both user-accessible and app-installed
           const appChannel = appChannels.find(c => c.id === userChannel.id);
+          
+          // Skip archived or closed channels
+          if (userChannel.is_archived || userChannel.is_member === false) {
+            continue;
+          }
           
           console.log(`🔍 Found available channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
           

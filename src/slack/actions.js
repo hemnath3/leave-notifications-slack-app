@@ -44,12 +44,25 @@ module.exports = (app) => {
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
       
-      // Extract selected channels from checkboxes
+      // Extract selected channels from dropdowns
       const selectedChannels = [];
-      const channelSelectionKey = Object.keys(values.channel_selection || {})[0];
       
-      if (channelSelectionKey && values.channel_selection[channelSelectionKey].selected_options) {
-        selectedChannels.push(...values.channel_selection[channelSelectionKey].selected_options);
+      // Channel 1 (required)
+      const channel1Key = Object.keys(values.channel_1 || {})[0];
+      if (channel1Key && values.channel_1[channel1Key].selected_option) {
+        selectedChannels.push(values.channel_1[channel1Key].selected_option);
+      }
+      
+      // Channel 2 (optional)
+      const channel2Key = Object.keys(values.channel_2 || {})[0];
+      if (channel2Key && values.channel_2[channel2Key].selected_option && values.channel_2[channel2Key].selected_option.value !== 'none') {
+        selectedChannels.push(values.channel_2[channel2Key].selected_option);
+      }
+      
+      // Channel 3 (optional)
+      const channel3Key = Object.keys(values.channel_3 || {})[0];
+      if (channel3Key && values.channel_3[channel3Key].selected_option && values.channel_3[channel3Key].selected_option.value !== 'none') {
+        selectedChannels.push(values.channel_3[channel3Key].selected_option);
       }
       
       console.log('🔍 Extracted values:', {
@@ -182,13 +195,15 @@ module.exports = (app) => {
             const channelData = await client.conversations.info({ channel: channelId });
             return {
               channelId,
-              channelName: channelData.channel.name
+              channelName: channelData.channel.name,
+              isPrivate: channelData.channel.is_private || false
             };
           } catch (error) {
             console.log(`⚠️ Could not get channel info for ${channelId}:`, error.message);
             return {
               channelId,
-              channelName: 'Unknown Channel'
+              channelName: 'Unknown Channel',
+              isPrivate: false
             };
           }
         })
@@ -235,7 +250,7 @@ module.exports = (app) => {
       // Send confirmation to user
       try {
         const reasonDisplay = reason.trim() || 'No reason provided';
-        const channelList = channelInfo.map(ch => `#${ch.channelName}`).join(', ');
+        const channelList = channelInfo.map(ch => `${ch.isPrivate ? '🔒' : '#'}${ch.channelName}`).join(', ');
         
         await client.chat.postEphemeral({
           channel: metadata.channelId,
