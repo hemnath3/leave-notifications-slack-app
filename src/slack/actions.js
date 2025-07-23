@@ -299,18 +299,23 @@ module.exports = (app) => {
                   type: 'button',
                   text: {
                     type: 'plain_text',
-                    text: 'Edit Leave',
+                    text: '✏️ Edit Leave',
                     emoji: true
                   },
                   style: 'primary',
                   action_id: 'edit_leave',
                   value: leaveId
-                },
+                }
+              ]
+            },
+            {
+              type: 'actions',
+              elements: [
                 {
                   type: 'button',
                   text: {
                     type: 'plain_text',
-                    text: 'Delete Leave',
+                    text: '🗑️ Delete Leave',
                     emoji: true
                   },
                   style: 'danger',
