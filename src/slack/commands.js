@@ -326,7 +326,7 @@ module.exports = (app) => {
               },
               element: {
                 type: 'checkboxes',
-                options: userChannels.map(channel => ({
+                options: userChannels.map((channel, index) => ({
                   text: {
                     type: 'plain_text',
                     text: `#${channel.channelName}${channel.isPrivate ? ' 🔒' : ''}`,
@@ -335,7 +335,7 @@ module.exports = (app) => {
                   value: channel.channelId,
                   description: {
                     type: 'plain_text',
-                    text: channel.isPrivate ? 'Private channel' : 'Public channel',
+                    text: channel.isPrivate ? `Private channel (ID: ${channel.channelId.slice(-6)})` : 'Public channel',
                     emoji: false
                   }
                 }))

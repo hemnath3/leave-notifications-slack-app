@@ -121,11 +121,33 @@ class TeamService {
         // Check if this channel has a team (app is installed)
         const existingTeam = allTeams.find(team => team.channelId === channel.id);
         if (existingTeam) {
-          console.log(`🔍 Found available channel: #${channel.name} (${channel.id})`);
+          console.log(`🔍 Found available channel: #${channel.name} (${channel.id}) - Private: ${channel.is_private}`);
+          
+          // For private channels, try to get more detailed info
+          let channelName = channel.name;
+          let isPrivate = channel.is_private || false;
+          
+          if (isPrivate) {
+            try {
+              // Try to get more detailed channel info for private channels
+              const channelInfo = await slackClient.conversations.info({
+                channel: channel.id
+              });
+              
+              if (channelInfo.channel && channelInfo.channel.name) {
+                channelName = channelInfo.channel.name;
+                console.log(`🔍 Got detailed info for private channel: #${channelName}`);
+              }
+            } catch (infoError) {
+              console.log(`⚠️ Could not get detailed info for private channel ${channel.id}:`, infoError.message);
+              // Keep the name from userConversations
+            }
+          }
+          
           availableChannels.push({
             channelId: channel.id,
-            channelName: channel.name,
-            isPrivate: channel.is_private || false
+            channelName: channelName,
+            isPrivate: isPrivate
           });
         }
       }
