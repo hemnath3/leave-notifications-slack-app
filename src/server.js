@@ -52,6 +52,7 @@ if (useSocketMode) {
   console.log('🔧 Using Socket Mode (development)');
 } else {
   // HTTP webhooks for production
+  slackAppConfig.socketMode = false;
   console.log('🚀 Using HTTP webhooks (production)');
 }
 
