@@ -39,12 +39,28 @@ module.exports = (app) => {
       // Get all channels where user is a member and app is installed
       const userChannels = await TeamService.getUserChannelsWithApp(command.user_id, client);
       
+      console.log(`🔍 User channels found: ${userChannels.length}`, 
+        userChannels.map(c => `#${c.channelName}`));
+      
       // If no channels found, add current channel as fallback
       if (userChannels.length === 0) {
+        console.log('⚠️ No channels found, adding current channel as fallback');
+        
+        // Try to get current channel info
+        let currentChannelName = 'Unknown Channel';
+        try {
+          const currentChannelInfo = await client.conversations.info({
+            channel: command.channel_id
+          });
+          currentChannelName = currentChannelInfo.channel.name;
+        } catch (error) {
+          console.log('⚠️ Could not get current channel info:', error.message);
+        }
+        
         userChannels.push({
           channelId: command.channel_id,
-          channelName: channelInfo?.channel?.name || 'Unknown Channel',
-          teamName: 'Team'
+          channelName: currentChannelName,
+          isPrivate: false
         });
       }
       
@@ -299,13 +315,13 @@ module.exports = (app) => {
                 options: userChannels.map(channel => ({
                   text: {
                     type: 'plain_text',
-                    text: `#${channel.channelName}`,
+                    text: `#${channel.channelName}${channel.isPrivate ? ' 🔒' : ''}`,
                     emoji: true
                   },
                   value: channel.channelId,
                   description: {
                     type: 'plain_text',
-                    text: `Team: ${channel.teamName}`,
+                    text: channel.isPrivate ? 'Private channel' : 'Public channel',
                     emoji: false
                   }
                 }))

@@ -109,34 +109,37 @@ class TeamService {
         team.members.some(member => member.userId === userId)
       );
       
-      // Additional verification: check if user is actually a member of these channels in Slack
+      console.log(`Found ${userChannels.length} channels where user ${userId} is a member`);
+      
+      // Get channel information for each channel
       const verifiedChannels = [];
       
       for (const team of userChannels) {
         try {
-          // Check if user is a member of this channel in Slack
-          const channelMembers = await slackClient.conversations.members({
+          // Try to get channel info from Slack API
+          const channelInfo = await slackClient.conversations.info({
             channel: team.channelId
           });
           
-          // If user is in the channel members list, add to verified channels
-          if (channelMembers.members && channelMembers.members.includes(userId)) {
-            verifiedChannels.push({
-              channelId: team.channelId,
-              channelName: team.channelName,
-              teamName: team.teamName
-            });
-          }
-        } catch (channelError) {
-          console.log(`⚠️ Could not verify membership for channel ${team.channelName}:`, channelError.message);
-          // If we can't verify, still include it (user might be in a private channel)
           verifiedChannels.push({
             channelId: team.channelId,
-            channelName: team.channelName,
-            teamName: team.teamName
+            channelName: channelInfo.channel.name,
+            isPrivate: channelInfo.channel.is_private || false
+          });
+        } catch (channelError) {
+          console.log(`⚠️ Could not get info for channel ${team.channelId}:`, channelError.message);
+          
+          // For private channels or inaccessible channels, use stored name
+          verifiedChannels.push({
+            channelId: team.channelId,
+            channelName: team.channelName || 'Private Channel',
+            isPrivate: true
           });
         }
       }
+      
+      console.log(`Processed ${verifiedChannels.length} channels for user ${userId}:`, 
+        verifiedChannels.map(c => `#${c.channelName}${c.isPrivate ? ' (private)' : ''}`));
       
       return verifiedChannels;
     } catch (error) {
