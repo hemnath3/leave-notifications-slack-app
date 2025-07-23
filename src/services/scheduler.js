@@ -95,14 +95,7 @@ class NotificationScheduler {
         return startDateStr >= todayKey;
       });
       
-      if (currentLeaves.length === 0) {
-        await this.slackApp.client.chat.postMessage({
-          channel: channelId,
-          text: '📅 No team members are away today! Everyone is available. 🎉'
-        });
-        return;
-      }
-      
+      // Create the base message structure
       const blocks = [
         {
           type: 'header',
@@ -125,6 +118,17 @@ class NotificationScheduler {
           type: 'divider'
         }
       ];
+      
+      if (currentLeaves.length === 0) {
+        // Add "no leaves" message to the blocks instead of sending separate message
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '✅ *No team members are away today! Everyone is available.* 🎉'
+          }
+        });
+            } else {
       
       currentLeaves.forEach(leave => {
         const startDate = new Date(leave.startDate);
@@ -189,7 +193,7 @@ class NotificationScheduler {
       // Get unique members (in case someone has multiple leaves for the same date)
       const uniqueMembers = [...new Set(fullDayLeaves.map(leave => leave.userId))];
       
-      // Add summary footer
+      // Add summary footer only if there are leaves today
       if (uniqueMembers.length > 0) {
         blocks.push({
           type: 'divider'
@@ -205,7 +209,7 @@ class NotificationScheduler {
         });
       }
       
-      // Add upcoming leaves section
+      // Add upcoming leaves section (always show for next 3 working days)
       console.log('🔄 About to add upcoming leaves section...');
       await this.addUpcomingLeavesSection(blocks, channelId);
       console.log('✅ Upcoming leaves section added');
@@ -413,12 +417,11 @@ class NotificationScheduler {
         
         console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
         
-        if (filteredLeaves.length > 0) {
-          upcomingLeaves.push({
-            date: date,
-            leaves: filteredLeaves
-          });
-        }
+        // Always add the date, even if no leaves (to show "No leaves" message)
+        upcomingLeaves.push({
+          date: date,
+          leaves: filteredLeaves
+        });
       }
       
       console.log(`📊 Total upcoming leaves found: ${upcomingLeaves.length}`);
@@ -456,13 +459,23 @@ class NotificationScheduler {
             }
           });
           
-          for (const leave of dayData.leaves) {
-            const emoji = this.getLeaveTypeEmoji(leave.leaveType);
-            let text = `• ${emoji} *${leave.userName}* - `;
-            
-            if (leave.isFullDay) {
-              text += `${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}`;
-            } else {
+          if (dayData.leaves.length === 0) {
+            // Show "No leaves" message for this day
+            blocks.push({
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: '   • No leaves scheduled'
+              }
+            });
+          } else {
+            for (const leave of dayData.leaves) {
+              const emoji = this.getLeaveTypeEmoji(leave.leaveType);
+              let text = `• ${emoji} *${leave.userName}* - `;
+              
+              if (leave.isFullDay) {
+                text += `${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}`;
+              } else {
               text += `Away ${leave.startTime} - ${leave.endTime}`;
             }
             
@@ -479,6 +492,7 @@ class NotificationScheduler {
             });
           }
         }
+      }
       }
     } catch (error) {
       console.error('Error adding upcoming leaves section:', error);

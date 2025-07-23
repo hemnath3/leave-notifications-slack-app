@@ -201,6 +201,169 @@ module.exports = (app) => {
       }
     }
   });
-  
+
+  // Handle manage leave button click
+  app.action('manage_leave', async ({ ack, body, client }) => {
+    await ack();
+    
+    try {
+      const leaveId = body.actions[0].value;
+      const userId = body.user.id;
+      
+      console.log('🔍 Manage leave requested for leave ID:', leaveId, 'by user:', userId);
+      
+      // Get the leave details
+      const leave = await Leave.findById(leaveId);
+      
+      if (!leave) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ Leave not found. It may have been deleted already.'
+        });
+        return;
+      }
+      
+      // Check if user owns this leave
+      if (leave.userId !== userId) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ You can only manage your own leaves.'
+        });
+        return;
+      }
+      
+      // Create management modal
+      const startDate = new Date(leave.startDate);
+      const endDate = new Date(leave.endDate);
+      
+      await client.views.open({
+        trigger_id: body.trigger_id,
+        view: {
+          type: 'modal',
+          callback_id: 'manage_leave_modal',
+          title: {
+            type: 'plain_text',
+            text: 'Manage Leave',
+            emoji: true
+          },
+          submit: {
+            type: 'plain_text',
+            text: 'Update',
+            emoji: true
+          },
+          close: {
+            type: 'plain_text',
+            text: 'Cancel',
+            emoji: true
+          },
+          private_metadata: JSON.stringify({
+            leaveId: leaveId,
+            userId: userId,
+            channelId: body.channel.id
+          }),
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*Current Leave Details:*\n• Type: ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}\n• Date: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}\n• Duration: ${leave.isFullDay ? 'Full Day' : `${leave.startTime} - ${leave.endTime}`}\n• Reason: ${leave.reason || 'None'}`
+              }
+            },
+            {
+              type: 'divider'
+            },
+            {
+              type: 'actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: {
+                    type: 'plain_text',
+                    text: 'Edit Leave',
+                    emoji: true
+                  },
+                  style: 'primary',
+                  action_id: 'edit_leave',
+                  value: leaveId
+                },
+                {
+                  type: 'button',
+                  text: {
+                    type: 'plain_text',
+                    text: 'Delete Leave',
+                    emoji: true
+                  },
+                  style: 'danger',
+                  action_id: 'delete_leave',
+                  value: leaveId
+                }
+              ]
+            }
+          ]
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error opening manage leave modal:', error);
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: body.user.id,
+        text: '❌ Sorry, there was an error opening the management options. Please try again.'
+      });
+    }
+  });
+
+  // Handle delete leave action
+  app.action('delete_leave', async ({ ack, body, client }) => {
+    await ack();
+    
+    try {
+      const leaveId = body.actions[0].value;
+      const userId = body.user.id;
+      
+      console.log('🗑️ Delete leave requested for leave ID:', leaveId, 'by user:', userId);
+      
+      // Get the leave details
+      const leave = await Leave.findById(leaveId);
+      
+      if (!leave) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ Leave not found. It may have been deleted already.'
+        });
+        return;
+      }
+      
+      // Check if user owns this leave
+      if (leave.userId !== userId) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ You can only delete your own leaves.'
+        });
+        return;
+      }
+      
+      // Delete the leave
+      await Leave.findByIdAndDelete(leaveId);
+      
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: userId,
+        text: `✅ Your leave has been deleted successfully!\n\n*Deleted Leave:*\n• Type: ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}\n• Date: ${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+      });
+      
+    } catch (error) {
+      console.error('❌ Error deleting leave:', error);
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: body.user.id,
+        text: '❌ Sorry, there was an error deleting your leave. Please try again.'
+      });
+    }
+  });
 
 }; 
