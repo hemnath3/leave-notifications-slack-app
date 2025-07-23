@@ -29,7 +29,7 @@ module.exports = (app) => {
       console.log('🔍 Form values structure:', JSON.stringify(values, null, 2));
       
       // Extract values using dynamic key lookup (more robust approach)
-      const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value || 'other';
+      const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value;
       const isFullDay = values.is_full_day?.[Object.keys(values.is_full_day || {})[0]]?.selected_option?.value === 'true';
       
       // Extract dates using the first key from each object
@@ -92,6 +92,16 @@ module.exports = (app) => {
         reason,
         metadata
       });
+      
+      // Validate leave type is selected
+      if (!leaveType) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: Please select a leave type.'
+        });
+        return;
+      }
       
       // Validate dates
       if (!startDate || !endDate) {
