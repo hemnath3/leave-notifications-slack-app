@@ -108,7 +108,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Choose up to 4 channels that you\'re part of and has this APP installed to notify your leaves to. # for public channels, 🔒 for private channels.'
+                  text: '📢 *Channel Selection:* Choose up to 3 channels to notify your leaves other than your current channel. # for public channels, 🔒 for private channels.'
                 }
               ]
             },
@@ -274,8 +274,7 @@ module.exports = (app) => {
                   emoji: true
                 },
                 initial_time: '09:00'
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -293,8 +292,7 @@ module.exports = (app) => {
                   emoji: true
                 },
                 initial_time: '17:00'
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -313,8 +311,7 @@ module.exports = (app) => {
                   emoji: true
                 },
                 max_length: 500
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -347,8 +344,7 @@ module.exports = (app) => {
                   },
                   value: command.channel_id
                 } : undefined
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -391,8 +387,7 @@ module.exports = (app) => {
                   },
                   value: 'none'
                 }
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -435,8 +430,7 @@ module.exports = (app) => {
                   },
                   value: 'none'
                 }
-              },
-              optional: true
+              }
             },
             {
               type: 'input',
@@ -479,8 +473,7 @@ module.exports = (app) => {
                   },
                   value: 'none'
                 }
-              },
-              optional: true
+              }
             }
           ],
           private_metadata: JSON.stringify({

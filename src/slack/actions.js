@@ -166,12 +166,12 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate: Maximum 4 channels allowed
-      if (selectedChannels.length > 4) {
+      // Validate: Maximum 3 channels allowed
+      if (selectedChannels.length > 3) {
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: '❌ Error: You can only select up to 4 channels to notify about your leave.'
+          text: '❌ Error: You can only select up to 3 channels to notify about your leave.'
         });
         return;
       }
