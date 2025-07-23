@@ -1,148 +1,194 @@
-# 🚀 Deployment Guide - Railway
+# Leave Notifications Slack App - Deployment Guide
 
-## Quick Deploy to Railway
+## 🚀 Production Deployment
 
-### Step 1: Prepare Your Repository
-1. **Push your code to GitHub** (if not already done)
-2. **Ensure these files are in your repo:**
-   - `package.json` ✅
-   - `src/server.js` ✅
-   - `Procfile` ✅
-   - `railway.json` ✅
-   - `.gitignore` ✅
+This guide will help you deploy the Leave Notifications Slack App to your organization's Slack workspace.
 
-### Step 2: Deploy to Railway
+## 📋 Prerequisites
 
-#### Option A: Deploy via Railway Dashboard
-1. Go to [railway.app](https://railway.app)
-2. Click **"Start a New Project"**
-3. Choose **"Deploy from GitHub repo"**
-4. Select your repository
-5. Railway will auto-detect it's a Node.js app
+1. **Slack App Setup** - Create a new Slack app in your organization
+2. **MongoDB Database** - Set up a MongoDB instance (Atlas, Railway, etc.)
+3. **Hosting Platform** - Deploy to Railway, Heroku, AWS, etc.
 
-#### Option B: Deploy via Railway CLI
+## 🔧 Slack App Configuration
+
+### 1. Create Slack App
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click "Create New App" → "From scratch"
+3. Name: `Leave Notifications` (or your preferred name)
+4. Select your workspace
+
+### 2. Configure OAuth & Permissions
+Go to **OAuth & Permissions** and add these scopes:
+
+**Bot Token Scopes:**
+- `chat:write` - Send messages
+- `commands` - Add slash commands
+- `users:read` - Read user info
+- `channels:read` - Read channel info
+- `app_mentions:read` - Respond to mentions
+
+### 3. Install App to Workspace
+1. Go to **Install App** section
+2. Click "Install to Workspace"
+3. Copy the **Bot User OAuth Token** (starts with `xoxb-`)
+
+### 4. Configure Slash Commands
+Go to **Slash Commands** and create these commands:
+
+| Command | Request URL | Short Description |
+|---------|-------------|-------------------|
+| `/request-leave` | `https://your-domain.com/slack/events` | Request time off |
+| `/my-leaves` | `https://your-domain.com/slack/events` | View your leaves |
+| `/send-reminder` | `https://your-domain.com/slack/events` | Send daily reminder |
+| `/leaves-today` | `https://your-domain.com/slack/events` | View today's leaves |
+
+### 5. Configure Event Subscriptions
+1. Go to **Event Subscriptions**
+2. Enable Events: **ON**
+3. Request URL: `https://your-domain.com/slack/events`
+4. Subscribe to bot events:
+   - `app_mention`
+   - `message.im`
+
+### 6. Get App Credentials
+Copy these values:
+- **Bot User OAuth Token**: `xoxb-...`
+- **Signing Secret**: From **Basic Information** → **App Credentials**
+
+## 🌍 Environment Variables
+
+Set these environment variables in your hosting platform:
+
 ```bash
-# Install Railway CLI
-npm install -g @railway/cli
+# Slack Configuration
+SLACK_BOT_TOKEN=xoxb-your-bot-token-here
+SLACK_SIGNING_SECRET=your-signing-secret-here
 
-# Login to Railway
-railway login
-
-# Initialize project
-railway init
-
-# Deploy
-railway up
-```
-
-### Step 3: Configure Environment Variables
-
-In Railway Dashboard → Your Project → Variables tab, add:
-
-```env
-# Slack App Credentials
-SLACK_BOT_TOKEN=xoxb-your-bot-token
-SLACK_SIGNING_SECRET=your-signing-secret
-SLACK_APP_TOKEN=xapp-your-app-token
-
-# MongoDB
+# MongoDB Configuration
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/leave-notifications
 
-# Optional: Channel for notifications
-SLACK_CHANNEL_ID=C1234567890
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+USE_SOCKET_MODE=false
 
-# Remove this for production (only for development)
-# NODE_TLS_REJECT_UNAUTHORIZED=0
+# Optional: Customize notification channel
+NOTIFICATION_CHANNEL=#leave-notifications
 ```
 
-### Step 4: Get Your App URL
+## 🚀 Deployment Options
 
-1. Go to **Settings** tab in Railway
-2. Copy your **Domain** (e.g., `https://your-app-name.railway.app`)
-3. **You don't need this URL for Socket Mode** - your app works without it!
+### Option 1: Railway (Recommended)
+1. Connect your GitHub repository to Railway
+2. Set environment variables in Railway dashboard
+3. Deploy automatically on git push
 
-### Step 5: Test Your Deployment
+### Option 2: Heroku
+1. Create Heroku app
+2. Set environment variables: `heroku config:set KEY=value`
+3. Deploy: `git push heroku main`
 
-1. **Check logs** in Railway Dashboard → Deployments
-2. **Test your Slack commands:**
-   - `/leave` - Should open modal
-   - `/send-reminder` - Should post message
-   - `/leaves-today` - Should show leaves
+### Option 3: AWS/DigitalOcean
+1. Set up server/container
+2. Configure environment variables
+3. Use PM2 or Docker for process management
 
-## 🎯 Why Railway is Perfect for Your App
+## 🔄 Development vs Production
 
-### ✅ **Socket Mode Compatible**
-- Your app uses Socket Mode (no public URL needed)
-- Works perfectly with Railway's free tier
+### Development (Local)
+```bash
+NODE_ENV=development
+USE_SOCKET_MODE=true
+SLACK_APP_TOKEN=xapp-your-app-token
+```
 
-### ✅ **Always Running**
-- Free tier: 500 hours/month
-- Your app runs 24/7 without issues
+### Production
+```bash
+NODE_ENV=production
+USE_SOCKET_MODE=false
+# No SLACK_APP_TOKEN needed
+```
 
-### ✅ **Auto-Scaling**
-- Handles traffic spikes automatically
-- No manual scaling needed
+## 📡 Webhook URL Configuration
 
-### ✅ **Easy Updates**
-- Push to GitHub → Auto-deploy
-- Zero downtime deployments
+For production, your Slack app needs to send events to:
+```
+https://your-domain.com/slack/events
+```
 
-## 🔧 Troubleshooting
+Make sure your domain is accessible and has SSL (HTTPS).
+
+## 🔍 Health Check
+
+Test your deployment:
+```bash
+curl https://your-domain.com/health
+```
+
+Expected response:
+```json
+{
+  "status": "OK",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "mode": "webhook",
+  "environment": "production"
+}
+```
+
+## 🛠️ Troubleshooting
 
 ### Common Issues:
 
-#### 1. **App Not Starting**
-- Check Railway logs
-- Verify all environment variables are set
-- Ensure MongoDB URI is correct
+1. **"URL verification failed"**
+   - Check your webhook URL is accessible
+   - Ensure HTTPS is enabled
+   - Verify signing secret is correct
 
-#### 2. **Slack Commands Not Working**
-- Verify Slack tokens are correct
-- Check if app is installed in your workspace
-- Ensure all required scopes are added
+2. **"Bot token is invalid"**
+   - Reinstall the app to workspace
+   - Check OAuth scopes are correct
 
-#### 3. **MongoDB Connection Issues**
-- Verify MongoDB URI format
-- Check if MongoDB Atlas IP whitelist includes Railway IPs
-- Or use MongoDB Atlas with `0.0.0.0/0` for all IPs
+3. **"MongoDB connection failed"**
+   - Verify MONGODB_URI is correct
+   - Check network access to MongoDB
 
-### Logs to Check:
-```bash
-# In Railway Dashboard → Deployments → View Logs
-# Look for:
-✅ "Connected to MongoDB"
-✅ "⚡️ Slack app is running!"
-✅ "Notification scheduler started"
-```
+4. **Commands not working**
+   - Verify Request URLs in slash commands
+   - Check bot is added to channels
+   - Ensure proper scopes are granted
 
-## 🚀 Next Steps After Deployment
+## 📊 Monitoring
 
-1. **Test all functionality** in your Slack workspace
-2. **Add app to multiple channels** if needed
-3. **Set up monitoring** (optional)
-4. **Configure custom domain** (optional)
+Monitor your app with:
+- **Health endpoint**: `/health`
+- **Logs**: Check hosting platform logs
+- **Slack app analytics**: api.slack.com/apps → Your App → Analytics
 
-## 💰 Cost Breakdown
+## 🔐 Security Best Practices
 
-- **Railway Free Tier**: $0/month
-  - 500 hours/month (enough for 24/7)
-  - 1GB RAM
-  - Shared CPU
+1. **Environment Variables**: Never commit secrets to git
+2. **HTTPS**: Always use HTTPS in production
+3. **Rate Limiting**: Already configured in the app
+4. **Input Validation**: All user inputs are validated
+5. **Database Security**: Use MongoDB Atlas or secure MongoDB instance
 
-- **MongoDB Atlas Free Tier**: $0/month
-  - 512MB storage
-  - Shared clusters
+## 📝 Post-Deployment Checklist
 
-**Total Cost: $0/month** 🎉
+- [ ] App installed to workspace
+- [ ] All slash commands working
+- [ ] Daily reminders being sent
+- [ ] Health endpoint responding
+- [ ] MongoDB connected
+- [ ] Environment variables set
+- [ ] HTTPS enabled
+- [ ] Webhook URL verified
 
-## 🔄 Updating Your App
+## 🆘 Support
 
-To update your app:
-1. Make changes to your code
-2. Push to GitHub
-3. Railway auto-deploys the changes
-4. No downtime!
-
----
-
-**Your Slack app is now running 24/7 in the cloud!** 🌟 
+If you encounter issues:
+1. Check the logs in your hosting platform
+2. Verify all environment variables are set
+3. Test the health endpoint
+4. Check Slack app configuration
+5. Ensure MongoDB is accessible 

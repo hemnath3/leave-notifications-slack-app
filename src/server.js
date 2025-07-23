@@ -1,7 +1,7 @@
-// Disable SSL certificate warnings for development
-// This prevents "self-signed certificate in certificate chain" warnings
-// from the Slack Web API client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Disable SSL certificate warnings for development only
+if (process.env.NODE_ENV !== 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 const { App } = require('@slack/bolt');
 const express = require('express');
@@ -35,14 +35,27 @@ const limiter = rateLimit({
 });
 expressApp.use(limiter);
 
-// Initialize Slack app
-const slackApp = new App({
+// Determine if we should use Socket Mode or HTTP webhooks
+const useSocketMode = process.env.USE_SOCKET_MODE === 'true' || process.env.NODE_ENV !== 'production';
+
+// Initialize Slack app with appropriate configuration
+const slackAppConfig = {
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: true,
-  appToken: process.env.SLACK_APP_TOKEN,
-  logLevel: 'debug',
-});
+  logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+};
+
+if (useSocketMode) {
+  // Socket Mode for development
+  slackAppConfig.socketMode = true;
+  slackAppConfig.appToken = process.env.SLACK_APP_TOKEN;
+  console.log('🔧 Using Socket Mode (development)');
+} else {
+  // HTTP webhooks for production
+  console.log('🚀 Using HTTP webhooks (production)');
+}
+
+const slackApp = new App(slackAppConfig);
 
 // Import Slack event handlers
 require('./slack/events')(slackApp);
@@ -52,43 +65,58 @@ require('./slack/commands')(slackApp);
 // API Routes
 expressApp.use('/api/leaves', leaveRoutes);
 
-// Slack webhook endpoint (commented out for Socket Mode)
-// expressApp.use('/slack/events', slackApp.receiver.router);
+// Slack webhook endpoint (for production HTTP mode)
+if (!useSocketMode) {
+  expressApp.use('/slack/events', slackApp.receiver.router);
+  console.log('📡 Slack webhook endpoint available at /slack/events');
+}
 
 // Health check endpoint
 expressApp.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    mode: useSocketMode ? 'socket' : 'webhook',
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('Connected to MongoDB');
+    console.log('✅ Connected to MongoDB');
     
     // Start Express server
     expressApp.listen(PORT, () => {
-      console.log(`Express server running on port ${PORT}`);
+      console.log(`🌐 Express server running on port ${PORT}`);
     });
     
     // Start Slack app
     (async () => {
-      await slackApp.start();
-      console.log('⚡️ Slack app is running!');
+      if (useSocketMode) {
+        await slackApp.start();
+        console.log('⚡️ Slack app is running in Socket Mode!');
+      } else {
+        console.log('⚡️ Slack app is ready for HTTP webhooks!');
+      }
       
       // Start notification scheduler
       const scheduler = new NotificationScheduler(slackApp);
       scheduler.start();
+      console.log('⏰ Notification scheduler started');
     })();
   })
   .catch((error) => {
-    console.error('MongoDB connection error:', error);
+    console.error('❌ MongoDB connection error:', error);
     process.exit(1);
   });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  await slackApp.stop();
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  if (useSocketMode) {
+    await slackApp.stop();
+  }
   process.exit(0);
 });
 

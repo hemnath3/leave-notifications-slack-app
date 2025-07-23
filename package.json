@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest"
+    "prod": "NODE_ENV=production node src/server.js",
+    "test": "jest",
+    "build": "echo 'No build step required'",
+    "postinstall": "echo 'App ready for deployment'"
   },
   "keywords": [
     "slack",
