@@ -44,7 +44,7 @@ module.exports = (app) => {
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
       
-      // Extract selected channels from the multi-select
+      // Extract selected channels from checkboxes
       const selectedChannels = [];
       const channelSelectionKey = Object.keys(values.channel_selection || {})[0];
       
@@ -143,6 +143,16 @@ module.exports = (app) => {
           channel: metadata.channelId,
           user: metadata.userId,
           text: '❌ Error: Please select at least one channel to notify about your leave.'
+        });
+        return;
+      }
+      
+      // Validate: Maximum 3 channels allowed
+      if (selectedChannels.length > 3) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: You can only select up to 3 channels to notify about your leave.'
         });
         return;
       }

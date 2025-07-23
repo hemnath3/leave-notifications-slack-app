@@ -108,7 +108,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Type to search and select up to 3 channels to notify about your leave. Private channels are marked with 🔒. Your selections will be remembered for next time.'
+                  text: '📢 *Channel Selection:* Check the boxes for up to 3 channels to notify about your leave. Private channels are marked with 🔒. Your selections will be remembered for next time.'
                 }
               ]
             },
@@ -325,13 +325,7 @@ module.exports = (app) => {
                 emoji: true
               },
               element: {
-                type: 'multi_static_select',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Search and select channels',
-                  emoji: true
-                },
-                max_selected_items: 3,
+                type: 'checkboxes',
                 options: userChannels.map(channel => ({
                   text: {
                     type: 'plain_text',
@@ -348,7 +342,7 @@ module.exports = (app) => {
               },
               hint: {
                 type: 'plain_text',
-                text: 'Type to search channels. Select up to 3 channels to notify about your leave.',
+                text: `Select up to 3 channels to notify about your leave. Found ${userChannels.length} available channels.`,
                 emoji: true
               }
             }
