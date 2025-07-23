@@ -673,13 +673,13 @@ module.exports = (app) => {
         leaves = await Leave.find({ channelId: command.channel_id });
       }
       
-      // Filter by date
-      const targetDateStr = targetDate.toISOString().split('T')[0];
+      // Filter by date using timezone-aware comparison
+      const targetDateStr = moment(targetDate).tz('Australia/Sydney').format('YYYY-MM-DD');
       leaves = leaves.filter(leave => {
-        const startDate = new Date(leave.startDate);
-        const endDate = new Date(leave.endDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
+        const startDate = moment(leave.startDate).tz('Australia/Sydney');
+        const endDate = moment(leave.endDate).tz('Australia/Sydney');
+        const startDateStr = startDate.format('YYYY-MM-DD');
+        const endDateStr = endDate.format('YYYY-MM-DD');
         
         // Check if the target date falls within the leave period
         return targetDateStr >= startDateStr && targetDateStr <= endDateStr;
@@ -689,10 +689,10 @@ module.exports = (app) => {
       if (!command.text.trim()) {
         const todayStr = DateUtils.getTodayString();
         leaves = leaves.filter(leave => {
-          const startDate = new Date(leave.startDate);
-          const endDate = new Date(leave.endDate);
-          const startDateStr = startDate.toISOString().split('T')[0];
-          const endDateStr = endDate.toISOString().split('T')[0];
+          const startDate = moment(leave.startDate).tz('Australia/Sydney');
+          const endDate = moment(leave.endDate).tz('Australia/Sydney');
+          const startDateStr = startDate.format('YYYY-MM-DD');
+          const endDateStr = endDate.format('YYYY-MM-DD');
           
           // Show leaves that either start today or are ongoing today
           return startDateStr <= todayStr && endDateStr >= todayStr;

@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 9:29 AM AEST (for debugging)
-    cron.schedule('29 9 * * *', async () => {
+    // Schedule daily morning notification at 9:35 AM AEST (for debugging)
+    cron.schedule('35 9 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -58,6 +58,8 @@ class NotificationScheduler {
       // Get team member user IDs
       const teamMemberIds = team.members.map(m => m.userId);
       
+      console.log(`🔍 Scheduler: Team ${team.teamName} (${channelId}) has ${team.members.length} members:`, team.members.map(m => m.userName));
+      
       // Get leaves for today from this specific channel, but only for team members
       const leaves = await Leave.find({
         channelId: channelId,
@@ -68,9 +70,19 @@ class NotificationScheduler {
       
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
       console.log(`🔍 Scheduler: Today: ${today.format()}, Tomorrow: ${tomorrow.format()}`);
-      leaves.forEach(leave => {
-        console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
-      });
+      
+      if (leaves.length === 0) {
+        // Check if there are any leaves for this channel at all (for debugging)
+        const allLeavesForChannel = await Leave.find({ channelId: channelId });
+        console.log(`🔍 Scheduler: Total leaves in database for channel ${channelId}: ${allLeavesForChannel.length}`);
+        allLeavesForChannel.forEach(leave => {
+          console.log(`🔍 Scheduler: All leave in DB - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
+        });
+      } else {
+        leaves.forEach(leave => {
+          console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
+        });
+      }
       
       if (leaves.length === 0) {
         // Send a message that no one is on leave today
