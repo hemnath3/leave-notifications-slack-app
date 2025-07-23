@@ -800,21 +800,32 @@ module.exports = (app) => {
 
   // Command to manage user's leaves (view, edit, delete)
   app.command('/my-leaves', async ({ command, ack, client }) => {
-    await ack();
+    console.log('🔍 /my-leaves command received:', { 
+      user_id: command.user_id, 
+      channel_id: command.channel_id,
+      text: command.text 
+    });
     
     try {
+      await ack();
+      
       console.log('🔍 My leaves requested by user:', command.user_id);
       
       // Get user's leaves (current and future)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
+      console.log('📅 Searching for leaves from:', today.toISOString());
+      
       const userLeaves = await Leave.find({
         userId: command.user_id,
         endDate: { $gte: today }
       }).sort({ startDate: 1 }).lean();
       
+      console.log('📋 Found user leaves:', userLeaves.length);
+      
       if (userLeaves.length === 0) {
+        console.log('📅 No leaves found for user');
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
@@ -913,12 +924,31 @@ module.exports = (app) => {
       });
       
     } catch (error) {
-      console.error('❌ Error fetching user leaves:', error);
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: '❌ Sorry, there was an error fetching your leaves. Please try again.'
+      console.error('❌ Error in /my-leaves command:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        command: command ? 'command exists' : 'no command'
       });
+      
+      try {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: '❌ Sorry, there was an error fetching your leaves. Please try again.'
+        });
+      } catch (ephemeralError) {
+        console.error('❌ Could not send error message to user:', ephemeralError);
+        // Try to send a DM as fallback
+        try {
+          await client.chat.postMessage({
+            channel: command.user_id,
+            text: '❌ Sorry, there was an error fetching your leaves. Please try again.'
+          });
+        } catch (dmError) {
+          console.error('❌ Could not send DM either:', dmError);
+        }
+      }
     }
   });
 
