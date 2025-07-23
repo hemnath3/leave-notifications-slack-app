@@ -427,11 +427,17 @@ class NotificationScheduler {
           const dateStr = dayData.date.format('Do MMM');
           const dayName = dayData.date.format('dddd');
           
+          // Check if it's tomorrow
+          const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
+          const isTomorrow = dayData.date.isSame(tomorrow, 'day');
+          
+          const dateHeader = isTomorrow ? 'Tomorrow' : `${dayName}, ${dateStr}`;
+          
           blocks.push({
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*${dayName}, ${dateStr}:*`
+              text: `*${dateHeader}:*`
             }
           });
           

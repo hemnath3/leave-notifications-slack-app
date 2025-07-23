@@ -165,8 +165,7 @@ module.exports = (app) => {
                   text: 'Select start date',
                   emoji: true
                 },
-                initial_date: today,
-                min_date: today
+                initial_date: today
               }
             },
             {
@@ -184,8 +183,7 @@ module.exports = (app) => {
                   text: 'Select end date',
                   emoji: true
                 },
-                initial_date: today,
-                min_date: today
+                initial_date: today
               }
             },
             {
