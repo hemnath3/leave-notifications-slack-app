@@ -38,14 +38,33 @@ module.exports = (app) => {
       const startTimeKey = Object.keys(values.start_time || {})[0];
       const endTimeKey = Object.keys(values.end_time || {})[0];
       const reasonKey = Object.keys(values.reason || {})[0];
-      const channelSelectionKey = Object.keys(values.channel_selection || {})[0];
-      
       const startDate = startDateKey ? values.start_date[startDateKey].selected_date : undefined;
       const endDate = endDateKey ? values.end_date[endDateKey].selected_date : undefined;
       const startTime = startTimeKey ? values.start_time[startTimeKey].selected_time || '09:00' : '09:00';
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
-      const selectedChannels = channelSelectionKey ? values.channel_selection[channelSelectionKey].selected_options || [] : [];
+      
+      // Extract selected channels from the three dropdowns
+      const selectedChannels = [];
+      const channel1Key = Object.keys(values.channel_selection_1 || {})[0];
+      const channel2Key = Object.keys(values.channel_selection_2 || {})[0];
+      const channel3Key = Object.keys(values.channel_selection_3 || {})[0];
+      
+      if (channel1Key && values.channel_selection_1[channel1Key].selected_option) {
+        selectedChannels.push({
+          value: values.channel_selection_1[channel1Key].selected_option.value
+        });
+      }
+      if (channel2Key && values.channel_selection_2[channel2Key].selected_option) {
+        selectedChannels.push({
+          value: values.channel_selection_2[channel2Key].selected_option.value
+        });
+      }
+      if (channel3Key && values.channel_selection_3[channel3Key].selected_option) {
+        selectedChannels.push({
+          value: values.channel_selection_3[channel3Key].selected_option.value
+        });
+      }
       
       console.log('🔍 Extracted values:', {
         leaveType,
@@ -141,6 +160,9 @@ module.exports = (app) => {
         });
         return;
       }
+      
+      // Save user's channel preferences for next time
+      await TeamService.saveUserChannelPreferences(metadata.userId, selectedChannels.map(c => c.value));
       
       // Validate: Cannot apply leave more than 3 months in advance
       const threeMonthsFromNow = DateUtils.getThreeMonthsFromNow();
