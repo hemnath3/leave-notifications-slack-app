@@ -435,10 +435,9 @@ module.exports = (app) => {
         return;
       }
       
-      // Open edit modal with pre-filled leave details
+      // Open simple edit modal - only allow editing leave type and dates
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
-      const today = DateUtils.getTodayString();
       
       await client.views.open({
         trigger_id: body.trigger_id,
@@ -463,7 +462,8 @@ module.exports = (app) => {
           private_metadata: JSON.stringify({
             leaveId: leaveId,
             userId: userId,
-            channelId: body.channel.id
+            channelId: body.channel.id,
+            originalLeave: JSON.stringify(leave) // Store original leave data
           }),
           blocks: [
             {
@@ -471,9 +471,19 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📋 *Edit Leave Request Guidelines:*\n• Start date: Today or future (max 3 months)\n• End date: On or after start date (max 3 months)\n• Reason required only for "Other" leave type\n• Only "Other" can be partial day'
+                  text: '✏️ *Simple Edit Mode:* You can only change the leave type and dates.\n\nFor other changes (duration, times, reason), please delete and create a new leave request.'
                 }
               ]
+            },
+            {
+              type: 'divider'
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `*Current Details (unchanged):*\n• Duration: ${leave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${leave.startTime} - ${leave.endTime}\n• Reason: ${leave.reason || 'None'}`
+              }
             },
             {
               type: 'divider'
@@ -550,49 +560,6 @@ module.exports = (app) => {
             },
             {
               type: 'input',
-              block_id: 'is_full_day',
-              label: {
-                type: 'plain_text',
-                text: 'Duration',
-                emoji: true
-              },
-              element: {
-                type: 'static_select',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Select duration',
-                  emoji: true
-                },
-                initial_option: {
-                  text: {
-                    type: 'plain_text',
-                    text: leave.isFullDay ? 'Full Day' : 'Partial Day',
-                    emoji: true
-                  },
-                  value: leave.isFullDay ? 'true' : 'false'
-                },
-                options: [
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: 'Full Day',
-                      emoji: true
-                    },
-                    value: 'true'
-                  },
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: 'Partial Day',
-                      emoji: true
-                    },
-                    value: 'false'
-                  }
-                ]
-              }
-            },
-            {
-              type: 'input',
               block_id: 'start_date',
               label: {
                 type: 'plain_text',
@@ -636,65 +603,6 @@ module.exports = (app) => {
                 text: '📅 Select a date on or after start date (max 3 months ahead)',
                 emoji: true
               }
-            },
-            {
-              type: 'input',
-              block_id: 'start_time',
-              label: {
-                type: 'plain_text',
-                text: 'Start Time (for partial day)',
-                emoji: true
-              },
-              element: {
-                type: 'timepicker',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Select time',
-                  emoji: true
-                },
-                initial_time: leave.startTime || '09:00'
-              },
-              optional: true
-            },
-            {
-              type: 'input',
-              block_id: 'end_time',
-              label: {
-                type: 'plain_text',
-                text: 'End Time (for partial day)',
-                emoji: true
-              },
-              element: {
-                type: 'timepicker',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Select time',
-                  emoji: true
-                },
-                initial_time: leave.endTime || '17:00'
-              },
-              optional: true
-            },
-            {
-              type: 'input',
-              block_id: 'reason',
-              label: {
-                type: 'plain_text',
-                text: 'Reason (Required for Other leave type)',
-                emoji: true
-              },
-              element: {
-                type: 'plain_text_input',
-                multiline: true,
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Please provide a reason for your leave...',
-                  emoji: true
-                },
-                initial_value: leave.reason || '',
-                max_length: 500
-              },
-              optional: true
             }
           ]
         }
@@ -710,7 +618,7 @@ module.exports = (app) => {
     }
   });
 
-  // Handle edit leave modal submission
+  // Handle edit leave modal submission (simplified - only leave type and dates)
   app.view('edit_leave_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Edit leave modal submission handler called');
     await ack();
@@ -718,36 +626,19 @@ module.exports = (app) => {
     try {
       const metadata = JSON.parse(view.private_metadata);
       const values = view.state.values;
+      const originalLeave = JSON.parse(metadata.originalLeave);
       
-      // Extract form values with proper error handling
       console.log('🔍 Edit form values structure:', JSON.stringify(values, null, 2));
       
-      // Extract values using dynamic key lookup
-      const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value || 'other';
-      const isFullDay = values.is_full_day?.[Object.keys(values.is_full_day || {})[0]]?.selected_option?.value === 'true';
-      
-      // Extract dates using the first key from each object
+      // Extract only leave type and dates
+      const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value || originalLeave.leaveType;
       const startDateKey = Object.keys(values.start_date || {})[0];
       const endDateKey = Object.keys(values.end_date || {})[0];
-      const startTimeKey = Object.keys(values.start_time || {})[0];
-      const endTimeKey = Object.keys(values.end_time || {})[0];
-      const reasonKey = Object.keys(values.reason || {})[0];
       
       const startDate = startDateKey ? values.start_date[startDateKey].selected_date : undefined;
       const endDate = endDateKey ? values.end_date[endDateKey].selected_date : undefined;
-      const startTime = startTimeKey ? values.start_time[startTimeKey].selected_time || '09:00' : '09:00';
-      const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
-      const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
       
-      console.log('🔍 Extracted edit values:', {
-        leaveType,
-        isFullDay,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        reason
-      });
+      console.log('🔍 Extracted edit values:', { leaveType, startDate, endDate });
       
       // Validate dates
       if (!startDate || !endDate) {
@@ -792,26 +683,6 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate: Only "Other" leave type can be partial day
-      if (!isFullDay && leaveType !== 'other') {
-        await client.chat.postEphemeral({
-          channel: metadata.channelId,
-          user: metadata.userId,
-          text: '❌ Error: Only "Other" leave type can be partial day. Please select "Full Day" for other leave types.'
-        });
-        return;
-      }
-      
-      // Validate: Reason is required for "Other" leave type
-      if (leaveType === 'other' && (!reason || reason.trim() === '')) {
-        await client.chat.postEphemeral({
-          channel: metadata.channelId,
-          user: metadata.userId,
-          text: '❌ Error: Reason is required for "Other" leave type. Please provide a reason.'
-        });
-        return;
-      }
-      
       // Validate: Cannot apply leave more than 3 months in advance
       const threeMonthsFromNow = DateUtils.getThreeMonthsFromNow();
       if (start > threeMonthsFromNow.toDate()) {
@@ -823,17 +694,14 @@ module.exports = (app) => {
         return;
       }
       
-      // Update the leave record
+      // Update only leave type and dates, preserve everything else
       const updatedLeave = await Leave.findByIdAndUpdate(
         metadata.leaveId,
         {
           leaveType,
           startDate: start,
-          endDate: end,
-          startTime: isFullDay ? '09:00' : startTime,
-          endTime: isFullDay ? '17:00' : endTime,
-          isFullDay,
-          reason: reason.trim() || 'No reason provided'
+          endDate: end
+          // Keep original: isFullDay, startTime, endTime, reason
         },
         { new: true }
       );
@@ -850,12 +718,11 @@ module.exports = (app) => {
       // Send confirmation message
       const startDateStr = DateUtils.formatDateForDisplay(start);
       const endDateStr = DateUtils.formatDateForDisplay(end);
-      const duration = isFullDay ? 'Full Day' : `${startTime} - ${endTime}`;
       
       await client.chat.postEphemeral({
         channel: metadata.channelId,
         user: metadata.userId,
-        text: `✅ Your leave has been updated successfully!\n\n*Updated Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reason.trim() || 'No reason provided'}\n\nYour updated leave will be included in the daily reminder at 9 AM.`
+        text: `✅ Your leave has been updated successfully!\n\n*Updated Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${originalLeave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${originalLeave.startTime} - ${originalLeave.endTime}\n• Reason: ${originalLeave.reason || 'None'}\n\nYour updated leave will be included in the daily reminder at 9 AM.`
       });
       
     } catch (error) {
