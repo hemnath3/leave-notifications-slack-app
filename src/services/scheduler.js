@@ -1,6 +1,7 @@
 const cron = require('node-cron');
-const moment = require('moment');
+const moment = require('moment-timezone');
 const Leave = require('../models/Leave');
+const DateUtils = require('../utils/dateUtils');
 
 class NotificationScheduler {
   constructor(slackApp) {
@@ -14,20 +15,20 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 9:00 AM
+    // Schedule daily morning notification at 9:00 AM AEST
     cron.schedule('0 9 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
-      timezone: 'UTC'
+      timezone: 'Australia/Sydney'
     });
 
-    // Schedule weekly summary on Monday at 9:00 AM
+    // Schedule weekly summary on Monday at 9:00 AM AEST
     cron.schedule('0 9 * * 1', async () => {
       console.log('Running weekly leave summary...');
       await this.sendWeeklySummary();
     }, {
-      timezone: 'UTC'
+      timezone: 'Australia/Sydney'
     });
 
     this.isRunning = true;
@@ -49,11 +50,8 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      const today = DateUtils.getCurrentDate().startOf('day').toDate();
+      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day').toDate();
       
       // Get leaves for today from this specific channel
       const leaves = await Leave.find({
@@ -119,7 +117,7 @@ class NotificationScheduler {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📅 *${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}* | ⏰ *${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}*`
+              text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
             }
           ]
         },
@@ -203,6 +201,9 @@ class NotificationScheduler {
           ]
         });
       }
+      
+      // Add upcoming leaves section
+      await this.addUpcomingLeavesSection(blocks, channelId);
       
 
       
@@ -355,6 +356,97 @@ class NotificationScheduler {
       other: '📝'
     };
     return emojis[type] || '📝';
+  }
+
+  async addUpcomingLeavesSection(blocks, channelId) {
+    try {
+      const today = DateUtils.getCurrentDate().startOf('day');
+      const nextThreeDays = [];
+      
+      // Get next 3 working days
+      for (let i = 1; i <= 7; i++) { // Check up to 7 days ahead
+        const checkDate = today.clone().add(i, 'days');
+        if (DateUtils.isWorkingDay(checkDate.toDate())) {
+          nextThreeDays.push(checkDate);
+          if (nextThreeDays.length >= 3) break;
+        }
+      }
+      
+      if (nextThreeDays.length === 0) return;
+      
+      // Get leaves for the next 3 working days
+      const upcomingLeaves = [];
+      for (const date of nextThreeDays) {
+        const startOfDay = date.startOf('day').toDate();
+        const endOfDay = date.endOf('day').toDate();
+        
+        const leaves = await Leave.find({
+          channelId: channelId,
+          startDate: { $lte: endOfDay },
+          endDate: { $gte: startOfDay }
+        });
+        
+        if (leaves.length > 0) {
+          upcomingLeaves.push({
+            date: date,
+            leaves: leaves
+          });
+        }
+      }
+      
+      if (upcomingLeaves.length > 0) {
+        blocks.push({
+          type: 'divider'
+        });
+        
+        blocks.push({
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '📅 Upcoming Leaves',
+            emoji: true
+          }
+        });
+        
+        for (const dayData of upcomingLeaves) {
+          const dateStr = dayData.date.format('Do MMM');
+          const dayName = dayData.date.format('dddd');
+          
+          blocks.push({
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*${dayName}, ${dateStr}:*`
+            }
+          });
+          
+          for (const leave of dayData.leaves) {
+            const emoji = this.getLeaveTypeEmoji(leave.leaveType);
+            let text = `• ${emoji} *${leave.userName}* - `;
+            
+            if (leave.isFullDay) {
+              text += `${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}`;
+            } else {
+              text += `Away ${leave.startTime} - ${leave.endTime}`;
+            }
+            
+            if (leave.reason && leave.leaveType === 'other') {
+              text += ` (${leave.reason})`;
+            }
+            
+            blocks.push({
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: text
+              }
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding upcoming leaves section:', error);
+    }
   }
 
   stop() {

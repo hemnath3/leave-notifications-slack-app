@@ -1,4 +1,5 @@
 const Leave = require('../models/Leave');
+const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
   // Command to open leave request modal
@@ -27,8 +28,8 @@ module.exports = (app) => {
         console.log('⚠️ Could not get channel info, but continuing with modal...');
       }
       
-      // Get today's date for the modal
-      const today = new Date().toISOString().split('T')[0];
+      // Get today's date for the modal in AEST
+      const today = DateUtils.getTodayString();
       
       // Open modal
       await client.views.open({
@@ -133,7 +134,7 @@ module.exports = (app) => {
                   {
                     text: {
                       type: 'plain_text',
-                      text: 'Partial Day',
+                      text: 'Partial Day (Only for Other leave type)',
                       emoji: true
                     },
                     value: 'false'
@@ -228,7 +229,7 @@ module.exports = (app) => {
               block_id: 'reason',
               label: {
                 type: 'plain_text',
-                text: 'Reason',
+                text: 'Reason (Required for Other leave type)',
                 emoji: true
               },
               element: {
@@ -240,7 +241,8 @@ module.exports = (app) => {
                   emoji: true
                 },
                 max_length: 500
-              }
+              },
+              optional: true
             }
           ],
           private_metadata: JSON.stringify({
@@ -292,7 +294,7 @@ module.exports = (app) => {
     
     try {
       const args = command.text.trim().split(/\s+/);
-      let targetDate = new Date();
+      let targetDate = DateUtils.getCurrentDate().toDate();
       let targetUser = null;
       
       // Parse arguments
@@ -330,7 +332,7 @@ module.exports = (app) => {
       
       // If no specific date was provided, only show today's leaves (not past leaves)
       if (!command.text.trim()) {
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = DateUtils.getTodayString();
         leaves = leaves.filter(leave => {
           const startDate = new Date(leave.startDate);
           const endDate = new Date(leave.endDate);
@@ -340,6 +342,17 @@ module.exports = (app) => {
           // Show leaves that either start today or are ongoing today
           return startDateStr <= todayStr && endDateStr >= todayStr;
         });
+      } else {
+        // If a specific date was provided, check if it's within 30 days in the past
+        const targetDateObj = new Date(targetDate);
+        if (!DateUtils.isWithinThirtyDaysPast(targetDateObj)) {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: '❌ Error: Cannot view leaves more than 30 days in the past. Please select a more recent date.'
+          });
+          return;
+        }
       }
       
       // Filter by user if specified
@@ -526,7 +539,7 @@ module.exports = (app) => {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📅 *${today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}* | ⏰ *${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}*`
+              text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
             }
           ]
         },

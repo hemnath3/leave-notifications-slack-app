@@ -1,4 +1,5 @@
 const Leave = require('../models/Leave');
+const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
   // Handle modal submission
@@ -63,8 +64,7 @@ module.exports = (app) => {
       
       const start = new Date(startDate + 'T00:00:00');
       const end = new Date(endDate + 'T23:59:59');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to start of today
+      const today = DateUtils.getCurrentDate().startOf('day').toDate();
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         await client.chat.postEphemeral({
@@ -95,9 +95,42 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate required fields
-      if (!reason || reason.trim() === '') {
+      // Validate: Only "Other" leave type can be partial day
+      if (!isFullDay && leaveType !== 'other') {
         await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: Only "Other" leave type can be partial day. Please select "Full Day" for other leave types.'
+        });
+        return;
+      }
+      
+      // Validate: Reason is required for "Other" leave type
+      if (leaveType === 'other' && (!reason || reason.trim() === '')) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: Reason is required for "Other" leave type. Please provide a reason.'
+        });
+        return;
+      }
+      
+      // Validate: Cannot apply leave more than 3 months in advance
+      const threeMonthsFromNow = DateUtils.getThreeMonthsFromNow();
+      if (start > threeMonthsFromNow.toDate()) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: Cannot apply leave more than 3 months in advance.'
+        });
+        return;
+      }
+      
+      // Calculate working days for display
+      const workingDays = DateUtils.getWorkingDays(start, end);
+      
+      // Validate required fields (only for Other leave type)
+      if (!reason || reason.trim() === '') {
           channel: metadata.channelId,
           user: metadata.userId,
           text: '❌ Error: Please provide a reason for your leave request.'
@@ -127,9 +160,9 @@ module.exports = (app) => {
       await leave.save();
       
       // Send confirmation message
-      const startDateStr = start.toLocaleDateString();
-      const endDateStr = end.toLocaleDateString();
-      const duration = isFullDay ? 'Full Day' : `${startTime} - ${endTime}`;
+      const startDateStr = DateUtils.formatDateForDisplay(start);
+      const endDateStr = DateUtils.formatDateForDisplay(end);
+      const duration = isFullDay ? `Full Day (${workingDays} working days)` : `${startTime} - ${endTime}`;
       
 
       
