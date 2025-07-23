@@ -664,6 +664,7 @@ module.exports = (app) => {
       }
     }
   });
+  });
 
   // Handle edit leave modal submission (simplified - only leave type and dates)
   console.log('🔍 Registering edit_leave_modal view handler');
