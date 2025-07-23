@@ -63,7 +63,7 @@ module.exports = (app) => {
       }
       
       const start = new Date(startDate + 'T00:00:00');
-      const end = new Date(endDate + 'T23:59:59');
+      const end = new Date(endDate + 'T00:00:00');
       const startOfToday = DateUtils.getCurrentDate().startOf('day');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {

@@ -600,7 +600,7 @@ module.exports = (app) => {
         });
       });
       
-      // Count only full-day leaves for summary
+      // Count only full-day leaves for summary and get unique members
       const fullDayLeaves = currentLeaves.filter(leave => {
         const startDate = new Date(leave.startDate);
         const endDate = new Date(leave.endDate);
@@ -608,8 +608,11 @@ module.exports = (app) => {
         return isMultiDay || leave.isFullDay;
       });
       
+      // Get unique members (in case someone has multiple leaves for the same date)
+      const uniqueMembers = [...new Set(fullDayLeaves.map(leave => leave.userId))];
+      
       // Add summary footer
-      if (fullDayLeaves.length > 0) {
+      if (uniqueMembers.length > 0) {
         blocks.push({
           type: 'divider'
         });
@@ -618,11 +621,16 @@ module.exports = (app) => {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📊 *${fullDayLeaves.length} team member${fullDayLeaves.length === 1 ? '' : 's'} away today*`
+              text: `📊 *${uniqueMembers.length} team member${uniqueMembers.length === 1 ? '' : 's'} away today*`
             }
           ]
         });
       }
+      
+      // Add upcoming leaves section
+      console.log('🔄 About to add upcoming leaves section...');
+      await addUpcomingLeavesSection(blocks, command.channel_id);
+      console.log('✅ Upcoming leaves section added');
       
 
       
@@ -655,4 +663,135 @@ module.exports = (app) => {
       }
     }
   });
+  
+  // Helper function to add upcoming leaves section
+  async function addUpcomingLeavesSection(blocks, channelId) {
+    try {
+      console.log('🔍 Adding upcoming leaves section for channel:', channelId);
+      const today = DateUtils.getCurrentDate().startOf('day');
+      console.log('📅 Today is:', today.format('YYYY-MM-DD'));
+      
+      // Get all future leaves (starting from tomorrow)
+      const tomorrow = today.clone().add(1, 'day').startOf('day');
+      const futureLeaves = await Leave.find({
+        channelId: channelId,
+        startDate: { $gte: tomorrow.toDate() }
+      }).lean();
+      
+      console.log(`📋 Found ${futureLeaves.length} future leaves total`);
+      
+      if (futureLeaves.length === 0) {
+        console.log('⚠️ No future leaves found');
+        return;
+      }
+      
+      // Group leaves by date for next 3 working days
+      const upcomingLeaves = [];
+      const nextThreeWorkingDays = [];
+      
+      // Get next 3 working days
+      for (let i = 1; i <= 7; i++) {
+        const checkDate = today.clone().add(i, 'days');
+        if (DateUtils.isWorkingDay(checkDate.toDate())) {
+          nextThreeWorkingDays.push(checkDate);
+          if (nextThreeWorkingDays.length >= 3) break;
+        }
+      }
+      
+      console.log('📅 Next 3 working days:', nextThreeWorkingDays.map(d => d.format('YYYY-MM-DD')));
+      
+      // Group leaves by date
+      for (const date of nextThreeWorkingDays) {
+        const dateStr = date.format('YYYY-MM-DD');
+        const leavesForDate = futureLeaves.filter(leave => {
+          const leaveStart = new Date(leave.startDate);
+          const leaveEnd = new Date(leave.endDate);
+          const dateStart = date.startOf('day').toDate();
+          const dateEnd = date.endOf('day').toDate();
+          
+          return leaveStart <= dateEnd && leaveEnd >= dateStart;
+        });
+        
+        if (leavesForDate.length > 0) {
+          upcomingLeaves.push({
+            date: date,
+            leaves: leavesForDate
+          });
+        }
+      }
+      
+      console.log(`📊 Total upcoming leave days found: ${upcomingLeaves.length}`);
+      
+      if (upcomingLeaves.length > 0) {
+        console.log('✅ Adding upcoming leaves section to blocks');
+        blocks.push({
+          type: 'divider'
+        });
+        
+        blocks.push({
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '📅 Upcoming Leaves',
+            emoji: true
+          }
+        });
+        
+        for (const dayData of upcomingLeaves) {
+          const dateStr = dayData.date.format('Do MMM');
+          const dayName = dayData.date.format('dddd');
+          
+          // Check if it's tomorrow
+          const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
+          const isTomorrow = dayData.date.isSame(tomorrow, 'day');
+          
+          const dateHeader = isTomorrow ? 'Tomorrow' : `${dayName}, ${dateStr}`;
+          
+          blocks.push({
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*${dateHeader}:*`
+            }
+          });
+          
+          for (const leave of dayData.leaves) {
+            const emoji = getLeaveTypeEmoji(leave.leaveType);
+            let text = `• ${emoji} *${leave.userName}* - `;
+            
+            if (leave.isFullDay) {
+              text += `${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}`;
+            } else {
+              text += `Away ${leave.startTime} - ${leave.endTime}`;
+            }
+            
+            if (leave.reason && leave.leaveType === 'other') {
+              text += ` (${leave.reason})`;
+            }
+            
+            blocks.push({
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: text
+              }
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding upcoming leaves section:', error);
+    }
+  }
+  
+  // Helper function to get leave type emoji
+  function getLeaveTypeEmoji(type) {
+    switch(type) {
+      case 'vacation': return '🏖️';
+      case 'wellness': return '🧘';
+      case 'sick': return '🤒';
+      case 'personal': return '👤';
+      default: return '📝';
+    }
+  }
 }; 
