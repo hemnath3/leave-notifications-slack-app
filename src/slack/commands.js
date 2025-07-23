@@ -165,7 +165,8 @@ module.exports = (app) => {
                   text: 'Select start date',
                   emoji: true
                 },
-                initial_date: today
+                initial_date: today,
+                min_date: today
               }
             },
             {
@@ -183,7 +184,8 @@ module.exports = (app) => {
                   text: 'Select end date',
                   emoji: true
                 },
-                initial_date: today
+                initial_date: today,
+                min_date: today
               }
             },
             {
@@ -251,7 +253,57 @@ module.exports = (app) => {
             userEmail: userInfo.user.profile?.email || '',
             channelId: command.channel_id,
             channelName: channelInfo?.channel?.name || 'Unknown Channel'
-          })
+          }),
+          validate: async (payload) => {
+            const values = payload.state.values;
+            const startDate = values.start_date?.start_date?.selected_date;
+            const endDate = values.end_date?.end_date?.selected_date;
+            const leaveType = values.leave_type?.leave_type?.selected_option?.value;
+            const isFullDay = values.is_full_day?.is_full_day?.selected_option?.value === 'true';
+            const reason = values.reason?.reason?.value || '';
+            
+            // Validate start date is not in the past
+            if (startDate && startDate < today) {
+              return {
+                response_action: 'errors',
+                errors: {
+                  start_date: 'Start date cannot be in the past. Please select today or a future date.'
+                }
+              };
+            }
+            
+            // Validate end date is not before start date
+            if (startDate && endDate && endDate < startDate) {
+              return {
+                response_action: 'errors',
+                errors: {
+                  end_date: 'End date cannot be before start date. Please select a date on or after the start date.'
+                }
+              };
+            }
+            
+            // Validate reason is required for "Other" leave type
+            if (leaveType === 'other' && (!reason || reason.trim() === '')) {
+              return {
+                response_action: 'errors',
+                errors: {
+                  reason: 'Reason is required for "Other" leave type. Please provide a reason.'
+                }
+              };
+            }
+            
+            // Validate only "Other" can be partial day
+            if (!isFullDay && leaveType !== 'other') {
+              return {
+                response_action: 'errors',
+                errors: {
+                  is_full_day: 'Only "Other" leave type can be partial day. Please select "Full Day" for other leave types.'
+                }
+              };
+            }
+            
+            return null; // No errors
+          }
         }
       });
     } catch (error) {

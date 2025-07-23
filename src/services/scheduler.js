@@ -203,7 +203,9 @@ class NotificationScheduler {
       }
       
       // Add upcoming leaves section
+      console.log('🔄 About to add upcoming leaves section...');
       await this.addUpcomingLeavesSection(blocks, channelId);
+      console.log('✅ Upcoming leaves section added');
       
 
       
@@ -360,6 +362,7 @@ class NotificationScheduler {
 
   async addUpcomingLeavesSection(blocks, channelId) {
     try {
+      console.log('🔍 Adding upcoming leaves section for channel:', channelId);
       const today = DateUtils.getCurrentDate().startOf('day');
       const nextThreeDays = [];
       
@@ -372,7 +375,12 @@ class NotificationScheduler {
         }
       }
       
-      if (nextThreeDays.length === 0) return;
+      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.format('YYYY-MM-DD')));
+      
+      if (nextThreeDays.length === 0) {
+        console.log('⚠️ No working days found in next 7 days');
+        return;
+      }
       
       // Get leaves for the next 3 working days
       const upcomingLeaves = [];
@@ -380,11 +388,15 @@ class NotificationScheduler {
         const startOfDay = date.startOf('day').toDate();
         const endOfDay = date.endOf('day').toDate();
         
+        console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay} to ${endOfDay})`);
+        
         const leaves = await Leave.find({
           channelId: channelId,
           startDate: { $lte: endOfDay },
           endDate: { $gte: startOfDay }
         });
+        
+        console.log(`📋 Found ${leaves.length} leaves for ${date.format('YYYY-MM-DD')}`);
         
         if (leaves.length > 0) {
           upcomingLeaves.push({
@@ -394,7 +406,10 @@ class NotificationScheduler {
         }
       }
       
+      console.log(`📊 Total upcoming leaves found: ${upcomingLeaves.length}`);
+      
       if (upcomingLeaves.length > 0) {
+        console.log('✅ Adding upcoming leaves section to blocks');
         blocks.push({
           type: 'divider'
         });
