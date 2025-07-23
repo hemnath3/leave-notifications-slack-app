@@ -72,7 +72,20 @@ expressApp.use('/api/leaves', leaveRoutes);
 
 // Slack webhook endpoint (for production HTTP mode)
 if (!useSocketMode) {
-  expressApp.use('/slack/events', slackApp.receiver.router);
+  // For HTTP webhooks, we need to create the receiver manually
+  const { createExpressReceiver } = require('@slack/bolt');
+  const receiver = createExpressReceiver({
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    endpoints: {
+      events: '/slack/events'
+    }
+  });
+  
+  // Attach the receiver to the Slack app
+  slackApp.receiver = receiver;
+  
+  // Mount the receiver routes
+  expressApp.use('/slack/events', receiver.router);
   console.log('📡 Slack webhook endpoint available at /slack/events');
 }
 
