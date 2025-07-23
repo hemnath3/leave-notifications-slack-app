@@ -417,8 +417,10 @@ module.exports = (app) => {
       const leave = await Leave.findById(leaveId);
       
       if (!leave) {
+        // Handle different channel contexts (DM vs channel)
+        const channelId = body.channel?.id || body.channel || userId;
         await client.chat.postEphemeral({
-          channel: body.channel.id,
+          channel: channelId,
           user: userId,
           text: '❌ Leave not found. It may have been deleted already.'
         });
@@ -427,8 +429,10 @@ module.exports = (app) => {
       
       // Check if user owns this leave
       if (leave.userId !== userId) {
+        // Handle different channel contexts (DM vs channel)
+        const channelId = body.channel?.id || body.channel || userId;
         await client.chat.postEphemeral({
-          channel: body.channel.id,
+          channel: channelId,
           user: userId,
           text: '❌ You can only edit your own leaves.'
         });
@@ -438,6 +442,9 @@ module.exports = (app) => {
       // Open simple edit modal - only allow editing leave type and dates
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
+      
+      // Handle different channel contexts (DM vs channel)
+      const channelId = body.channel?.id || body.channel || userId;
       
       await client.views.open({
         trigger_id: body.trigger_id,
@@ -462,7 +469,7 @@ module.exports = (app) => {
           private_metadata: JSON.stringify({
             leaveId: leaveId,
             userId: userId,
-            channelId: body.channel.id,
+            channelId: channelId,
             originalLeave: JSON.stringify(leave) // Store original leave data
           }),
           blocks: [
