@@ -253,19 +253,31 @@ module.exports = (app) => {
             channelName: channelInfo?.channel?.name || 'Unknown Channel'
           }),
           validate: async (payload) => {
+            console.log('🔍 Modal validation triggered');
             const values = payload.state.values;
+            console.log('📋 Modal values:', JSON.stringify(values, null, 2));
+            
             const startDate = values.start_date?.start_date?.selected_date;
             const endDate = values.end_date?.end_date?.selected_date;
             const leaveType = values.leave_type?.leave_type?.selected_option?.value;
             const isFullDay = values.is_full_day?.is_full_day?.selected_option?.value === 'true';
             const reason = values.reason?.reason?.value || '';
             
+            console.log('📅 Validation data:', { startDate, endDate, leaveType, isFullDay, reason });
+            
             // Validate start date is not in the past
             if (startDate) {
               const startDateObj = new Date(startDate + 'T00:00:00');
               const todayObj = new Date(today + 'T00:00:00');
               
+              console.log('📅 Date comparison:', { 
+                startDateObj: startDateObj.toISOString(), 
+                todayObj: todayObj.toISOString(),
+                isPast: startDateObj < todayObj 
+              });
+              
               if (startDateObj < todayObj) {
+                console.log('❌ Start date validation failed');
                 return {
                   response_action: 'errors',
                   errors: {
@@ -280,7 +292,14 @@ module.exports = (app) => {
               const startDateObj = new Date(startDate + 'T00:00:00');
               const endDateObj = new Date(endDate + 'T00:00:00');
               
+              console.log('📅 End date comparison:', { 
+                startDateObj: startDateObj.toISOString(), 
+                endDateObj: endDateObj.toISOString(),
+                isInvalid: endDateObj < startDateObj 
+              });
+              
               if (endDateObj < startDateObj) {
+                console.log('❌ End date validation failed');
                 return {
                   response_action: 'errors',
                   errors: {
@@ -292,6 +311,7 @@ module.exports = (app) => {
             
             // Validate reason is required for "Other" leave type
             if (leaveType === 'other' && (!reason || reason.trim() === '')) {
+              console.log('❌ Reason validation failed');
               return {
                 response_action: 'errors',
                 errors: {
@@ -302,6 +322,7 @@ module.exports = (app) => {
             
             // Validate only "Other" can be partial day
             if (!isFullDay && leaveType !== 'other') {
+              console.log('❌ Partial day validation failed');
               return {
                 response_action: 'errors',
                 errors: {
@@ -310,6 +331,7 @@ module.exports = (app) => {
               };
             }
             
+            console.log('✅ Modal validation passed');
             return null; // No errors
           }
         }

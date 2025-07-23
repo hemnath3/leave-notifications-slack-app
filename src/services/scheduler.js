@@ -186,8 +186,11 @@ class NotificationScheduler {
         return isMultiDay || leave.isFullDay;
       });
       
+      // Get unique members (in case someone has multiple leaves for the same date)
+      const uniqueMembers = [...new Set(fullDayLeaves.map(leave => leave.userId))];
+      
       // Add summary footer
-      if (fullDayLeaves.length > 0) {
+      if (uniqueMembers.length > 0) {
         blocks.push({
           type: 'divider'
         });
@@ -196,7 +199,7 @@ class NotificationScheduler {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📊 *${fullDayLeaves.length} team member${fullDayLeaves.length === 1 ? '' : 's'} away today*`
+              text: `📊 *${uniqueMembers.length} team member${uniqueMembers.length === 1 ? '' : 's'} away today*`
             }
           ]
         });
@@ -414,13 +417,6 @@ class NotificationScheduler {
           upcomingLeaves.push({
             date: date,
             leaves: filteredLeaves
-          });
-        }
-        
-        if (leaves.length > 0) {
-          upcomingLeaves.push({
-            date: date,
-            leaves: leaves
           });
         }
       }
