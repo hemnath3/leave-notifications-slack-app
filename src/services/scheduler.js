@@ -209,10 +209,14 @@ class NotificationScheduler {
         });
       }
       
-      // Add upcoming leaves section (always show for next 3 working days)
+      // Add upcoming leaves section only if there are upcoming leaves
       console.log('🔄 About to add upcoming leaves section...');
-      await this.addUpcomingLeavesSection(blocks, channelId);
-      console.log('✅ Upcoming leaves section added');
+      const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId);
+      if (hasUpcomingLeaves) {
+        console.log('✅ Upcoming leaves section added');
+      } else {
+        console.log('ℹ️ No upcoming leaves found, skipping section');
+      }
       
       try {
         await this.slackApp.client.chat.postMessage({
@@ -423,9 +427,12 @@ class NotificationScheduler {
         });
       }
       
-      console.log(`📊 Total upcoming leaves found: ${upcomingLeaves.length}`);
+      console.log(`📊 Total upcoming leave days found: ${upcomingLeaves.length}`);
       
-      if (upcomingLeaves.length > 0) {
+      // Check if any of the upcoming days have leaves
+      const hasAnyUpcomingLeaves = upcomingLeaves.some(dayData => dayData.leaves.length > 0);
+      
+      if (hasAnyUpcomingLeaves) {
         console.log('✅ Adding upcoming leaves section to blocks');
         blocks.push({
           type: 'divider'
@@ -492,9 +499,11 @@ class NotificationScheduler {
           }
         }
       }
-      }
+      
+      return hasAnyUpcomingLeaves;
     } catch (error) {
       console.error('Error adding upcoming leaves section:', error);
+      return false;
     }
   }
 

@@ -760,11 +760,16 @@ module.exports = (app) => {
           ]
         });
       }
+    }
       
-      // Add upcoming leaves section
+      // Add upcoming leaves section only if there are upcoming leaves
       console.log('🔄 About to add upcoming leaves section...');
-      await addUpcomingLeavesSection(blocks, command.channel_id);
-      console.log('✅ Upcoming leaves section added');
+      const hasUpcomingLeaves = await addUpcomingLeavesSection(blocks, command.channel_id);
+      if (hasUpcomingLeaves) {
+        console.log('✅ Upcoming leaves section added');
+      } else {
+        console.log('ℹ️ No upcoming leaves found, skipping section');
+      }
       
 
       
@@ -796,7 +801,7 @@ module.exports = (app) => {
         console.error('❌ Could not send error message to user:', dmError);
       }
     }
-    });
+  });
 
   // Command to manage user's leaves (view, edit, delete)
   app.command('/my-leaves', async ({ command, ack, client }) => {
@@ -1010,9 +1015,12 @@ module.exports = (app) => {
         });
       }
       
-      console.log(`📊 Total upcoming leaves found: ${upcomingLeaves.length}`);
+      console.log(`📊 Total upcoming leave days found: ${upcomingLeaves.length}`);
       
-      if (upcomingLeaves.length > 0) {
+      // Check if any of the upcoming days have leaves
+      const hasAnyUpcomingLeaves = upcomingLeaves.some(dayData => dayData.leaves.length > 0);
+      
+      if (hasAnyUpcomingLeaves) {
         console.log('✅ Adding upcoming leaves section to blocks');
         blocks.push({
           type: 'divider'
@@ -1080,8 +1088,11 @@ module.exports = (app) => {
           }
         }
       }
+      
+      return hasAnyUpcomingLeaves;
     } catch (error) {
       console.error('Error adding upcoming leaves section:', error);
+      return false;
     }
   }
   
