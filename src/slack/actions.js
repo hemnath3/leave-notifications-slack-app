@@ -628,7 +628,20 @@ module.exports = (app) => {
   // Handle edit leave modal submission (simplified - only leave type and dates)
   app.view('edit_leave_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Edit leave modal submission handler called');
+    console.log('🔍 View data:', JSON.stringify(view, null, 2));
     await ack();
+    
+    // Send immediate test message to confirm handler is called
+    try {
+      const metadata = JSON.parse(view.private_metadata);
+      await client.chat.postEphemeral({
+        channel: metadata.channelId,
+        user: metadata.userId,
+        text: '🔍 Edit modal submission handler is working! Processing your request...'
+      });
+    } catch (error) {
+      console.error('❌ Error sending test message:', error);
+    }
     
     try {
       const metadata = JSON.parse(view.private_metadata);
