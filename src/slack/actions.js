@@ -7,6 +7,7 @@ module.exports = (app) => {
   app.view('leave_request_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Modal submission handler called');
     console.log('🔍 Callback ID:', view.callback_id);
+    console.log('🔍 ALL MODAL SUBMISSIONS GO THROUGH HERE FIRST');
     
     // If this is an edit modal, don't handle it here
     if (view.callback_id === 'edit_leave_modal') {
@@ -735,6 +736,14 @@ module.exports = (app) => {
         console.error('❌ Error sending error message:', metadataError);
       }
     }
+  });
+
+  // Catch-all modal submission handler for debugging
+  app.view('*', async ({ ack, view, client, body }) => {
+    console.log('🔍 CATCH-ALL MODAL HANDLER CALLED');
+    console.log('🔍 Callback ID:', view.callback_id);
+    console.log('🔍 View type:', view.type);
+    await ack();
   });
 
   // Handle manage leave modal submission (fallback for any submit button)
