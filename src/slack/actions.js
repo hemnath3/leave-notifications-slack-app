@@ -424,15 +424,19 @@ module.exports = (app) => {
     console.log('🔍 Edit leave action handler called');
     console.log('🔍 Action body:', JSON.stringify(body, null, 2));
     await ack();
+    console.log('🔍 Acknowledged edit action');
     
     try {
+      console.log('🔍 Starting edit leave processing');
       const leaveId = body.actions[0].value;
       const userId = body.user.id;
       
       console.log('✏️ Edit leave requested for leave ID:', leaveId, 'by user:', userId);
       
       // Get the leave details
+      console.log('🔍 Looking up leave in database');
       const leave = await Leave.findById(leaveId);
+      console.log('🔍 Leave lookup result:', leave ? 'Found' : 'Not found');
       
       if (!leave) {
         // Handle different channel contexts (DM vs channel)
@@ -458,12 +462,15 @@ module.exports = (app) => {
       }
       
       // Open simple edit modal - only allow editing leave type and dates
+      console.log('🔍 Preparing to open edit modal');
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
       
       // Handle different channel contexts (DM vs channel)
       const channelId = body.channel?.id || body.channel || userId;
+      console.log('🔍 Channel ID for modal:', channelId);
       
+      console.log('🔍 Opening edit modal...');
       await client.views.open({
         trigger_id: body.trigger_id,
         view: {
