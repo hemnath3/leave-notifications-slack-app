@@ -1,4 +1,5 @@
 const Leave = require('../models/Leave');
+const TeamService = require('../services/TeamService');
 const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
@@ -27,6 +28,13 @@ module.exports = (app) => {
         // Channel might be private or not accessible - that's okay
         console.log('⚠️ Could not get channel info, but continuing with modal...');
       }
+      
+      // Auto-add user to team when they open the modal
+      await TeamService.autoAddUserToTeam(command.channel_id, channelInfo?.channel?.name || 'Unknown Channel', {
+        userId: command.user_id,
+        userName: userInfo.user.real_name || userInfo.user.name,
+        userEmail: userInfo.user.profile?.email || ''
+      });
       
       // Get today's date for the modal in AEST
       const today = DateUtils.getTodayString();
@@ -453,8 +461,23 @@ module.exports = (app) => {
         }
       }
       
-      // Get all leaves for the channel
-      let leaves = await Leave.find({ channelId: command.channel_id });
+      // Get team info and filter leaves by team members
+      const team = await TeamService.getTeamByChannel(command.channel_id);
+      let leaves = [];
+      
+      if (team) {
+        // Get team member user IDs
+        const teamMemberIds = team.members.map(m => m.userId);
+        
+        // Get leaves for the channel, but only for team members
+        leaves = await Leave.find({ 
+          channelId: command.channel_id,
+          userId: { $in: teamMemberIds }
+        });
+      } else {
+        // Fallback: get all leaves for the channel if no team exists
+        leaves = await Leave.find({ channelId: command.channel_id });
+      }
       
       // Filter by date
       const targetDateStr = targetDate.toISOString().split('T')[0];

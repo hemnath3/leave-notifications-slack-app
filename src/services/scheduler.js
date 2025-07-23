@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const Leave = require('../models/Leave');
+const Team = require('../models/Team');
 const DateUtils = require('../utils/dateUtils');
 
 class NotificationScheduler {
@@ -37,11 +38,11 @@ class NotificationScheduler {
 
   async sendDailyNotifications() {
     try {
-      // Get all unique channels that have leaves
-      const channels = await Leave.distinct('channelId');
+      // Get all active teams (channels with the app installed)
+      const teams = await Team.getAllActiveTeams();
       
-      for (const channelId of channels) {
-        await this.sendDailyNotificationForChannel(channelId);
+      for (const team of teams) {
+        await this.sendDailyNotificationForChannel(team.channelId);
       }
     } catch (error) {
       console.error('Error sending daily notifications:', error);
@@ -53,9 +54,20 @@ class NotificationScheduler {
       const today = DateUtils.getCurrentDate().startOf('day').toDate();
       const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day').toDate();
       
-      // Get leaves for today from this specific channel
+      // Get team info
+      const team = await Team.getTeamByChannel(channelId);
+      if (!team) {
+        console.log(`No team found for channel ${channelId}, skipping notification`);
+        return;
+      }
+      
+      // Get team member user IDs
+      const teamMemberIds = team.members.map(m => m.userId);
+      
+      // Get leaves for today from this specific channel, but only for team members
       const leaves = await Leave.find({
         channelId: channelId,
+        userId: { $in: teamMemberIds },
         startDate: { $lte: tomorrow },
         endDate: { $gte: today }
       }).sort({ startDate: 1 });
@@ -238,10 +250,11 @@ class NotificationScheduler {
 
   async sendWeeklySummary() {
     try {
-      const channels = await Leave.distinct('channelId');
+      // Get all active teams (channels with the app installed)
+      const teams = await Team.getAllActiveTeams();
       
-      for (const channelId of channels) {
-        await this.sendWeeklySummaryForChannel(channelId);
+      for (const team of teams) {
+        await this.sendWeeklySummaryForChannel(team.channelId);
       }
     } catch (error) {
       console.error('Error sending weekly summary:', error);
@@ -253,7 +266,23 @@ class NotificationScheduler {
       const startOfWeek = moment().startOf('week').toDate();
       const endOfWeek = moment().endOf('week').toDate();
       
-      const leaves = await Leave.getLeavesForDateRange(startOfWeek, endOfWeek, channelId);
+      // Get team info
+      const team = await Team.getTeamByChannel(channelId);
+      if (!team) {
+        console.log(`No team found for channel ${channelId}, skipping weekly summary`);
+        return;
+      }
+      
+      // Get team member user IDs
+      const teamMemberIds = team.members.map(m => m.userId);
+      
+      // Get leaves for this week from this specific channel, but only for team members
+      const leaves = await Leave.find({
+        channelId: channelId,
+        userId: { $in: teamMemberIds },
+        startDate: { $lte: endOfWeek },
+        endDate: { $gte: startOfWeek }
+      }).sort({ startDate: 1 });
       
       if (leaves.length === 0) {
         await this.slackApp.client.chat.postMessage({

@@ -1,4 +1,5 @@
 const Leave = require('../models/Leave');
+const TeamService = require('../services/TeamService');
 const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
@@ -159,6 +160,13 @@ module.exports = (app) => {
       });
       
 
+      
+      // Auto-add user to team if not already a member
+      await TeamService.autoAddUserToTeam(metadata.channelId, metadata.channelName, {
+        userId: metadata.userId,
+        userName: metadata.userName,
+        userEmail: metadata.userEmail
+      });
       
       // Save leave
       await leave.save();
