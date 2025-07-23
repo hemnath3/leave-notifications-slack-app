@@ -168,10 +168,15 @@ class TeamService {
         } catch (channelError) {
           console.log(`⚠️ Could not get info for channel ${team.channelId}:`, channelError.message);
           
-          // For private channels or inaccessible channels, use stored name
+          // For private channels, try to get the name from the team data
+          // If that fails, use a generic name
+          const privateChannelName = team.channelName && team.channelName !== 'Unknown Channel' 
+            ? team.channelName 
+            : 'Private Channel';
+            
           verifiedChannels.push({
             channelId: team.channelId,
-            channelName: team.channelName || 'Private Channel',
+            channelName: privateChannelName,
             isPrivate: true
           });
         }

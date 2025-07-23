@@ -42,6 +42,11 @@ module.exports = (app) => {
       console.log(`🔍 User channels found: ${userChannels.length}`, 
         userChannels.map(c => `#${c.channelName}`));
       
+      // If only one channel found, add a note about progressive discovery
+      if (userChannels.length === 1) {
+        console.log('💡 Note: Only one channel found. User may need to use the command in other channels first to be added to those teams.');
+      }
+      
       // If no channels found, add current channel as fallback
       if (userChannels.length === 0) {
         console.log('⚠️ No channels found, adding current channel as fallback');
@@ -95,6 +100,15 @@ module.exports = (app) => {
                 {
                   type: 'mrkdwn',
                   text: '📋 *Leave Request Guidelines:*\n• Start date: Today or future (max 3 months)\n• End date: On or after start date (max 3 months)\n• Reason required only for "Other" leave type\n• Only "Other" can be partial day'
+                }
+              ]
+            },
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: '📢 *Channel Selection:* Select which channels should be notified about your leave. Private channels are marked with 🔒.'
                 }
               ]
             },
@@ -328,7 +342,7 @@ module.exports = (app) => {
               },
               hint: {
                 type: 'plain_text',
-                text: 'Select which channels should be notified about your leave',
+                text: 'Select which channels should be notified about your leave. Use the command in other channels first to see them here.',
                 emoji: true
               }
             }
