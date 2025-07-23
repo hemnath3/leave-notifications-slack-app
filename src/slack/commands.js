@@ -36,6 +36,9 @@ module.exports = (app) => {
         userEmail: userInfo.user.profile?.email || ''
       });
       
+      // Get all channels where user is a member and app is installed
+      const userChannels = await TeamService.getUserChannelsWithApp(command.user_id, client);
+      
       // Get today's date for the modal in AEST
       const today = DateUtils.getTodayString();
       
@@ -273,6 +276,42 @@ module.exports = (app) => {
                 max_length: 500
               },
               optional: true
+            },
+            {
+              type: 'input',
+              block_id: 'channel_selection',
+              label: {
+                type: 'plain_text',
+                text: 'Notify Channels',
+                emoji: true
+              },
+              element: {
+                type: 'checkboxes',
+                options: userChannels.map(channel => ({
+                  text: {
+                    type: 'plain_text',
+                    text: `#${channel.channelName}`,
+                    emoji: true
+                  },
+                  value: channel.channelId,
+                  description: {
+                    type: 'plain_text',
+                    text: `Team: ${channel.teamName}`,
+                    emoji: false
+                  }
+                })),
+                initial_options: userChannels.length === 1 ? 
+                  [{ text: { type: 'plain_text', text: `#${userChannels[0].channelName}` }, value: userChannels[0].channelId }] :
+                  userChannels.map(channel => ({
+                    text: { type: 'plain_text', text: `#${channel.channelName}` },
+                    value: channel.channelId
+                  }))
+              },
+              hint: {
+                type: 'plain_text',
+                text: 'Select which channels should be notified about your leave',
+                emoji: true
+              }
             }
           ],
           private_metadata: JSON.stringify({

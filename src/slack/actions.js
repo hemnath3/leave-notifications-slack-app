@@ -38,12 +38,14 @@ module.exports = (app) => {
       const startTimeKey = Object.keys(values.start_time || {})[0];
       const endTimeKey = Object.keys(values.end_time || {})[0];
       const reasonKey = Object.keys(values.reason || {})[0];
+      const channelSelectionKey = Object.keys(values.channel_selection || {})[0];
       
       const startDate = startDateKey ? values.start_date[startDateKey].selected_date : undefined;
       const endDate = endDateKey ? values.end_date[endDateKey].selected_date : undefined;
       const startTime = startTimeKey ? values.start_time[startTimeKey].selected_time || '09:00' : '09:00';
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
+      const selectedChannels = channelSelectionKey ? values.channel_selection[channelSelectionKey].selected_options || [] : [];
       
       console.log('🔍 Extracted values:', {
         leaveType,
@@ -52,7 +54,8 @@ module.exports = (app) => {
         endDate,
         startTime,
         endTime,
-        reason
+        reason,
+        selectedChannels: selectedChannels.map(c => c.value)
       });
       
       console.log('🔍 Modal submission received:', {
@@ -129,6 +132,16 @@ module.exports = (app) => {
         return;
       }
       
+      // Validate: At least one channel must be selected
+      if (selectedChannels.length === 0) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: '❌ Error: Please select at least one channel to notify about your leave.'
+        });
+        return;
+      }
+      
       // Validate: Cannot apply leave more than 3 months in advance
       const threeMonthsFromNow = DateUtils.getThreeMonthsFromNow();
       if (start > threeMonthsFromNow.toDate()) {
@@ -143,33 +156,56 @@ module.exports = (app) => {
       // Calculate working days for display
       const workingDays = DateUtils.getWorkingDays(start, end);
       
-      // Create leave record
-      const leave = new Leave({
-        userId: metadata.userId,
-        userName: metadata.userName,
-        userEmail: metadata.userEmail || 'not-provided@example.com', // Provide default if empty
-        leaveType,
-        startDate: start,
-        endDate: end,
-        startTime: isFullDay ? '09:00' : startTime,
-        endTime: isFullDay ? '17:00' : endTime,
-        isFullDay,
-        reason: reason.trim() || 'No reason provided', // Provide default for non-Other leave types
-        channelId: metadata.channelId,
-        channelName: metadata.channelName
+      // Get channel information for selected channels
+      const channelInfo = await Promise.all(
+        selectedChannels.map(async (channelOption) => {
+          const channelId = channelOption.value;
+          try {
+            const channelData = await client.conversations.info({ channel: channelId });
+            return {
+              channelId,
+              channelName: channelData.channel.name
+            };
+          } catch (error) {
+            console.log(`⚠️ Could not get channel info for ${channelId}:`, error.message);
+            return {
+              channelId,
+              channelName: 'Unknown Channel'
+            };
+          }
+        })
+      );
+      
+      // Create leave records for each selected channel
+      const leavePromises = channelInfo.map(async (channel) => {
+        // Auto-add user to team if not already a member
+        await TeamService.autoAddUserToTeam(channel.channelId, channel.channelName, {
+          userId: metadata.userId,
+          userName: metadata.userName,
+          userEmail: metadata.userEmail
+        });
+        
+        // Create leave record for this channel
+        const leave = new Leave({
+          userId: metadata.userId,
+          userName: metadata.userName,
+          userEmail: metadata.userEmail || 'not-provided@example.com',
+          leaveType,
+          startDate: start,
+          endDate: end,
+          startTime: isFullDay ? '09:00' : startTime,
+          endTime: isFullDay ? '17:00' : endTime,
+          isFullDay,
+          reason: reason.trim() || 'No reason provided',
+          channelId: channel.channelId,
+          channelName: channel.channelName
+        });
+        
+        return leave.save();
       });
       
-
-      
-      // Auto-add user to team if not already a member
-      await TeamService.autoAddUserToTeam(metadata.channelId, metadata.channelName, {
-        userId: metadata.userId,
-        userName: metadata.userName,
-        userEmail: metadata.userEmail
-      });
-      
-      // Save leave
-      await leave.save();
+      // Save all leave records
+      await Promise.all(leavePromises);
       
       // Send confirmation message
       const startDateStr = DateUtils.formatDateForDisplay(start);
@@ -181,10 +217,12 @@ module.exports = (app) => {
       // Send confirmation to user
       try {
         const reasonDisplay = reason.trim() || 'No reason provided';
+        const channelList = channelInfo.map(ch => `#${ch.channelName}`).join(', ');
+        
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reasonDisplay}\n\nYour leave will be included in the daily reminder at 9 AM.`
+          text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reasonDisplay}\n• Notified Channels: ${channelList}\n\nYour leave will be included in the daily reminder at 9 AM for the selected channels.`
         });
       } catch (userError) {
         console.log('⚠️ Could not send confirmation to user, but leave was saved successfully');

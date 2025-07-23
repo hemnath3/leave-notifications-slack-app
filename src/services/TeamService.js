@@ -98,6 +98,53 @@ class TeamService {
     }
   }
 
+  // Get all channels where user is a member and app is installed
+  static async getUserChannelsWithApp(userId, slackClient) {
+    try {
+      // Get all channels where the app is installed (active teams)
+      const allTeams = await this.getAllActiveTeams();
+      
+      // Filter to only channels where user is a member
+      const userChannels = allTeams.filter(team => 
+        team.members.some(member => member.userId === userId)
+      );
+      
+      // Additional verification: check if user is actually a member of these channels in Slack
+      const verifiedChannels = [];
+      
+      for (const team of userChannels) {
+        try {
+          // Check if user is a member of this channel in Slack
+          const channelMembers = await slackClient.conversations.members({
+            channel: team.channelId
+          });
+          
+          // If user is in the channel members list, add to verified channels
+          if (channelMembers.members && channelMembers.members.includes(userId)) {
+            verifiedChannels.push({
+              channelId: team.channelId,
+              channelName: team.channelName,
+              teamName: team.teamName
+            });
+          }
+        } catch (channelError) {
+          console.log(`⚠️ Could not verify membership for channel ${team.channelName}:`, channelError.message);
+          // If we can't verify, still include it (user might be in a private channel)
+          verifiedChannels.push({
+            channelId: team.channelId,
+            channelName: team.channelName,
+            teamName: team.teamName
+          });
+        }
+      }
+      
+      return verifiedChannels;
+    } catch (error) {
+      console.error('Error getting user channels with app:', error);
+      return [];
+    }
+  }
+
   // Check if user is member of a specific team
   static async isUserMemberOfTeam(userId, channelId) {
     try {
