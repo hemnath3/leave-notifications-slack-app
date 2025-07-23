@@ -461,8 +461,8 @@ module.exports = (app) => {
         return;
       }
       
-      // Open simple edit modal - only allow editing leave type and dates
-      console.log('🔍 Preparing to open edit modal');
+      // Open simple edit modal with just date checkboxes
+      console.log('🔍 Opening simple edit modal with date checkboxes');
       const startDate = new Date(leave.startDate);
       const endDate = new Date(leave.endDate);
       
@@ -470,20 +470,19 @@ module.exports = (app) => {
       const channelId = body.channel?.id || body.channel || userId;
       console.log('🔍 Channel ID for modal:', channelId);
       
-      console.log('🔍 Opening edit modal...');
       const result = await client.views.open({
-          trigger_id: body.trigger_id,
-          view: {
+        trigger_id: body.trigger_id,
+        view: {
           type: 'modal',
           callback_id: 'edit_leave_modal',
           title: {
             type: 'plain_text',
-            text: 'Edit Leave',
+            text: 'Edit Leave Dates',
             emoji: true
           },
           submit: {
             type: 'plain_text',
-            text: 'Update Leave',
+            text: 'Update Dates',
             emoji: true
           },
           close: {
@@ -495,7 +494,7 @@ module.exports = (app) => {
             leaveId: leaveId,
             userId: userId,
             channelId: channelId,
-            originalLeave: JSON.stringify(leave) // Store original leave data
+            originalLeave: JSON.stringify(leave)
           }),
           blocks: [
             {
@@ -503,7 +502,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '✏️ *Simple Edit Mode:* You can only change the leave type and dates.\n\nFor other changes (duration, times, reason), please delete and create a new leave request.'
+                  text: '✏️ *Simple Date Edit:* You can only change the start and end dates. All other details will remain unchanged.'
                 }
               ]
             },
@@ -514,81 +513,11 @@ module.exports = (app) => {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `*Current Details (unchanged):*\n• Duration: ${leave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${leave.startTime} - ${leave.endTime}\n• Reason: ${leave.reason || 'None'}`
+                text: `*Current Leave Details (unchanged):*\n• Type: ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}\n• Duration: ${leave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${leave.startTime} - ${leave.endTime}\n• Reason: ${leave.reason || 'None'}`
               }
             },
             {
               type: 'divider'
-            },
-            {
-              type: 'input',
-              block_id: 'leave_type',
-              label: {
-                type: 'plain_text',
-                text: 'Leave Type',
-                emoji: true
-              },
-              element: {
-                type: 'static_select',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Select leave type',
-                  emoji: true
-                },
-                initial_option: {
-                  text: {
-                    type: 'plain_text',
-                    text: leave.leaveType === 'vacation' ? '🏖️ Vacation' : 
-                          leave.leaveType === 'wellness' ? '🧘 Wellness Day' :
-                          leave.leaveType === 'sick' ? '🤒 Sick Leave' :
-                          leave.leaveType === 'personal' ? '👤 Personal Leave' : '📝 Other',
-                    emoji: true
-                  },
-                  value: leave.leaveType
-                },
-                options: [
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: '🏖️ Vacation',
-                      emoji: true
-                    },
-                    value: 'vacation'
-                  },
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: '🧘 Wellness Day',
-                      emoji: true
-                    },
-                    value: 'wellness'
-                  },
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: '🤒 Sick Leave',
-                      emoji: true
-                    },
-                    value: 'sick'
-                  },
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: '👤 Personal Leave',
-                      emoji: true
-                    },
-                    value: 'personal'
-                  },
-                  {
-                    text: {
-                      type: 'plain_text',
-                      text: '📝 Other',
-                      emoji: true
-                    },
-                    value: 'other'
-                  }
-                ]
-              }
             },
             {
               type: 'input',
@@ -640,7 +569,7 @@ module.exports = (app) => {
         }
       });
       
-      console.log('🔍 Modal open result:', result);
+      console.log('🔍 Simple edit modal opened successfully');
       
     } catch (error) {
       console.error('❌ Error handling edit leave action:', error);
@@ -689,15 +618,14 @@ module.exports = (app) => {
       
       console.log('🔍 Edit form values structure:', JSON.stringify(values, null, 2));
       
-      // Extract only leave type and dates
-      const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value || originalLeave.leaveType;
+      // Extract only dates (leave type remains unchanged)
       const startDateKey = Object.keys(values.start_date || {})[0];
       const endDateKey = Object.keys(values.end_date || {})[0];
       
       const startDate = startDateKey ? values.start_date[startDateKey].selected_date : undefined;
       const endDate = endDateKey ? values.end_date[endDateKey].selected_date : undefined;
       
-      console.log('🔍 Extracted edit values:', { leaveType, startDate, endDate });
+      console.log('🔍 Extracted edit values:', { startDate, endDate });
       
       // Validate dates
       if (!startDate || !endDate) {
@@ -753,14 +681,13 @@ module.exports = (app) => {
         return;
       }
       
-      // Update only leave type and dates, preserve everything else
+      // Update only dates, preserve everything else
       const updatedLeave = await Leave.findByIdAndUpdate(
         metadata.leaveId,
         {
-          leaveType,
           startDate: start,
           endDate: end
-          // Keep original: isFullDay, startTime, endTime, reason
+          // Keep original: leaveType, isFullDay, startTime, endTime, reason
         },
         { new: true }
       );
@@ -781,7 +708,7 @@ module.exports = (app) => {
       await client.chat.postEphemeral({
         channel: metadata.channelId,
         user: metadata.userId,
-        text: `✅ Your leave has been updated successfully!\n\n*Updated Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${originalLeave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${originalLeave.startTime} - ${originalLeave.endTime}\n• Reason: ${originalLeave.reason || 'None'}\n\nYour updated leave will be included in the daily reminder at 9 AM.`
+        text: `✅ Your leave dates have been updated successfully!\n\n*Updated Details:*\n• Type: ${originalLeave.leaveType.charAt(0).toUpperCase() + originalLeave.leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${originalLeave.isFullDay ? 'Full Day' : 'Partial Day'}\n• Times: ${originalLeave.startTime} - ${originalLeave.endTime}\n• Reason: ${originalLeave.reason || 'None'}\n\nYour updated leave will be included in the daily reminder at 9 AM.`
       });
       
     } catch (error) {
