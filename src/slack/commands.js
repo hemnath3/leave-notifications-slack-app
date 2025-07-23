@@ -261,23 +261,33 @@ module.exports = (app) => {
             const reason = values.reason?.reason?.value || '';
             
             // Validate start date is not in the past
-            if (startDate && startDate < today) {
-              return {
-                response_action: 'errors',
-                errors: {
-                  start_date: 'Start date cannot be in the past. Please select today or a future date.'
-                }
-              };
+            if (startDate) {
+              const startDateObj = new Date(startDate + 'T00:00:00');
+              const todayObj = new Date(today + 'T00:00:00');
+              
+              if (startDateObj < todayObj) {
+                return {
+                  response_action: 'errors',
+                  errors: {
+                    start_date: 'Start date cannot be in the past. Please select today or a future date.'
+                  }
+                };
+              }
             }
             
             // Validate end date is not before start date
-            if (startDate && endDate && endDate < startDate) {
-              return {
-                response_action: 'errors',
-                errors: {
-                  end_date: 'End date cannot be before start date. Please select a date on or after the start date.'
-                }
-              };
+            if (startDate && endDate) {
+              const startDateObj = new Date(startDate + 'T00:00:00');
+              const endDateObj = new Date(endDate + 'T00:00:00');
+              
+              if (endDateObj < startDateObj) {
+                return {
+                  response_action: 'errors',
+                  errors: {
+                    end_date: 'End date cannot be before start date. Please select a date on or after the start date.'
+                  }
+                };
+              }
             }
             
             // Validate reason is required for "Other" leave type
