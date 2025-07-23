@@ -3,8 +3,8 @@ const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
   // Command to open leave request modal
-  app.command('/request-leave', async ({ command, ack, client, body }) => {
-    console.log('🔍 /request-leave command received:', { 
+  app.command('/notify-leave', async ({ command, ack, client, body }) => {
+  console.log('🔍 /notify-leave command received:', { 
       user_id: command.user_id, 
       channel_id: command.channel_id,
       text: command.text 

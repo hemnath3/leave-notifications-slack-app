@@ -38,7 +38,7 @@ Go to **Slash Commands** and create these commands:
 
 | Command | Request URL | Short Description |
 |---------|-------------|-------------------|
-| `/request-leave` | `https://your-domain.com/slack/events` | Request time off |
+| `/notify-leave` | `https://your-domain.com/slack/events` | Request time off |
 | `/my-leaves` | `https://your-domain.com/slack/events` | View your leaves |
 | `/send-reminder` | `https://your-domain.com/slack/events` | Send daily reminder |
 | `/leaves-today` | `https://your-domain.com/slack/events` | View today's leaves |

@@ -19,7 +19,7 @@ module.exports = (app) => {
               fields: [
                 {
                   type: 'mrkdwn',
-                  text: '*`/request-leave`*\nOpen the leave request form'
+                  text: '*`/notify-leave`*\nOpen the leave request form'
                 },
                 {
                   type: 'mrkdwn',
@@ -39,7 +39,7 @@ module.exports = (app) => {
       } else if (text.includes('status') || text.includes('summary')) {
         await say('Use `/leaves-today` to see today\'s leave schedule! 📅');
       } else {
-        await say('Hi! I\'m the Leave Notifications bot. Type `help` to see available commands or use `/request-leave` to submit a leave request! 🎉');
+        await say('Hi! I\'m the Leave Notifications bot. Type `help` to see available commands or use `/notify-leave` to submit a leave request! 🎉');
       }
     } catch (error) {
       console.error('Error handling app mention:', error);
@@ -54,7 +54,7 @@ module.exports = (app) => {
       if (defaultChannel) {
         await client.chat.postMessage({
           channel: defaultChannel,
-          text: `Welcome <@${event.user.id}> to the team! 🎉\n\nYou can use the Leave Notifications bot to submit leave requests. Type \`/request-leave\` to get started!`
+          text: `Welcome <@${event.user.id}> to the team! 🎉\n\nYou can use the Leave Notifications bot to submit leave requests. Type \`/notify-leave\` to get started!`
         });
       }
     } catch (error) {
@@ -67,7 +67,7 @@ module.exports = (app) => {
     try {
       await client.chat.postMessage({
         channel: event.channel,
-        text: `Welcome to the channel! 🎉\n\nYou can use the Leave Notifications bot here. Type \`/request-leave\` to submit a leave request or \`/leaves-today\` to see today's schedule.`
+        text: `Welcome to the channel! 🎉\n\nYou can use the Leave Notifications bot here. Type \`/notify-leave\` to submit a leave request or \`/leaves-today\` to see today's schedule.`
       });
     } catch (error) {
       console.error('Error handling channel join:', error);
