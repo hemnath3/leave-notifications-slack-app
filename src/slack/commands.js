@@ -39,6 +39,15 @@ module.exports = (app) => {
       // Get all channels where user is a member and app is installed
       const userChannels = await TeamService.getUserChannelsWithApp(command.user_id, client);
       
+      // If no channels found, add current channel as fallback
+      if (userChannels.length === 0) {
+        userChannels.push({
+          channelId: command.channel_id,
+          channelName: channelInfo?.channel?.name || 'Unknown Channel',
+          teamName: 'Team'
+        });
+      }
+      
       // Get today's date for the modal in AEST
       const today = DateUtils.getTodayString();
       
@@ -299,13 +308,7 @@ module.exports = (app) => {
                     text: `Team: ${channel.teamName}`,
                     emoji: false
                   }
-                })),
-                initial_options: userChannels.length === 1 ? 
-                  [{ text: { type: 'plain_text', text: `#${userChannels[0].channelName}` }, value: userChannels[0].channelId }] :
-                  userChannels.map(channel => ({
-                    text: { type: 'plain_text', text: `#${channel.channelName}` },
-                    value: channel.channelId
-                  }))
+                }))
               },
               hint: {
                 type: 'plain_text',
