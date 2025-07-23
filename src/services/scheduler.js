@@ -482,20 +482,21 @@ class NotificationScheduler {
               if (leave.isFullDay) {
                 text += `${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}`;
               } else {
-              text += `Away ${leave.startTime} - ${leave.endTime}`;
-            }
-            
-            if (leave.reason && leave.leaveType === 'other') {
-              text += ` (${leave.reason})`;
-            }
-            
-            blocks.push({
-              type: 'section',
-              text: {
-                type: 'mrkdwn',
-                text: text
+                text += `Away ${leave.startTime} - ${leave.endTime}`;
               }
-            });
+              
+              if (leave.reason && leave.leaveType === 'other') {
+                text += ` (${leave.reason})`;
+              }
+              
+              blocks.push({
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: text
+                }
+              });
+            }
           }
         }
       }
