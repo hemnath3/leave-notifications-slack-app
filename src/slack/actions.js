@@ -3,6 +3,15 @@ const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
   console.log('🔍 Loading actions.js module and registering handlers...');
+  
+  // Catch-all modal submission handler for debugging (MUST BE FIRST)
+  app.view('*', async ({ ack, view, client, body }) => {
+    console.log('🔍 CATCH-ALL MODAL HANDLER CALLED');
+    console.log('🔍 Callback ID:', view.callback_id);
+    console.log('🔍 View type:', view.type);
+    await ack();
+  });
+  
   // Handle modal submission
   app.view('leave_request_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Modal submission handler called');
@@ -472,6 +481,7 @@ module.exports = (app) => {
       const channelId = body.channel?.id || body.channel || userId;
       console.log('🔍 Channel ID for modal:', channelId);
       
+      console.log('🔍 About to open modal with trigger_id:', body.trigger_id);
       const result = await client.views.open({
         trigger_id: body.trigger_id,
         view: {
@@ -572,6 +582,7 @@ module.exports = (app) => {
       });
       
       console.log('🔍 Simple edit modal opened successfully');
+      console.log('🔍 Modal result:', JSON.stringify(result, null, 2));
       
     } catch (error) {
       console.error('❌ Error handling edit leave action:', error);
@@ -736,14 +747,6 @@ module.exports = (app) => {
         console.error('❌ Error sending error message:', metadataError);
       }
     }
-  });
-
-  // Catch-all modal submission handler for debugging
-  app.view('*', async ({ ack, view, client, body }) => {
-    console.log('🔍 CATCH-ALL MODAL HANDLER CALLED');
-    console.log('🔍 Callback ID:', view.callback_id);
-    console.log('🔍 View type:', view.type);
-    await ack();
   });
 
   // Handle manage leave modal submission (fallback for any submit button)
