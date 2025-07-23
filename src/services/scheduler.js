@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 9:35 AM AEST (for debugging)
-    cron.schedule('35 9 * * *', async () => {
+    // Schedule daily morning notification at 10:05 AM AEST (for debugging)
+    cron.schedule('5 10 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -60,9 +60,12 @@ class NotificationScheduler {
       
       console.log(`🔍 Scheduler: Team ${team.teamName} (${channelId}) has ${team.members.length} members:`, team.members.map(m => m.userName));
       
-      // Get leaves for today from this specific channel, but only for team members
+      // Get leaves for today that are either stored in this channel OR notified to this channel
       const leaves = await Leave.find({
-        channelId: channelId,
+        $or: [
+          { channelId: channelId }, // Leaves stored in this channel
+          { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
+        ],
         userId: { $in: teamMemberIds },
         startDate: { $lte: tomorrow.toDate() },
         endDate: { $gte: today.toDate() }
@@ -85,10 +88,38 @@ class NotificationScheduler {
       }
       
       if (leaves.length === 0) {
-        // Send a message that no one is on leave today
+        // Send a message that no one is on leave today with proper header
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
-          text: '📅 No team members are away today! Everyone is available. 🎉'
+          blocks: [
+            {
+              type: 'header',
+              text: {
+                type: 'plain_text',
+                text: '🌅 Good Morning! Today\'s Team Availability',
+                emoji: true
+              }
+            },
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
+                }
+              ]
+            },
+            {
+              type: 'divider'
+            },
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: '✅ *No team members are away today! Everyone is available.* 🎉'
+              }
+            }
+          ]
         });
         return;
       }

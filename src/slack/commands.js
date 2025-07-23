@@ -1,3 +1,4 @@
+const moment = require('moment-timezone');
 const Leave = require('../models/Leave');
 const TeamService = require('../services/TeamService');
 const DateUtils = require('../utils/dateUtils');
@@ -663,14 +664,22 @@ module.exports = (app) => {
         // Get team member user IDs
         const teamMemberIds = team.members.map(m => m.userId);
         
-        // Get leaves for the channel, but only for team members
-        leaves = await Leave.find({ 
-          channelId: command.channel_id,
+        // Get leaves that are either stored in this channel OR notified to this channel
+        leaves = await Leave.find({
+          $or: [
+            { channelId: command.channel_id }, // Leaves stored in this channel
+            { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
+          ],
           userId: { $in: teamMemberIds }
         });
       } else {
         // Fallback: get all leaves for the channel if no team exists
-        leaves = await Leave.find({ channelId: command.channel_id });
+        leaves = await Leave.find({
+          $or: [
+            { channelId: command.channel_id },
+            { 'notifiedChannels.channelId': command.channel_id }
+          ]
+        });
       }
       
       // Filter by date using timezone-aware comparison
@@ -814,6 +823,111 @@ module.exports = (app) => {
         channel: command.channel_id,
         user: command.user_id,
         text: errorMessage
+      });
+    }
+  });
+
+  // Command to view user's own leaves across all channels
+  app.command('/my-leaves', async ({ command, ack, client }) => {
+    await ack();
+    
+    try {
+      // Get all leaves for this user across all channels
+      const leaves = await Leave.find({ 
+        userId: command.user_id 
+      }).sort({ startDate: 1 });
+      
+      if (leaves.length === 0) {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: '📅 You have no leave requests submitted yet. Use `/notify-leave` to submit a leave request!'
+        });
+        return;
+      }
+      
+      const leaveBlocks = leaves.map(leave => {
+        const startDate = moment(leave.startDate).tz('Australia/Sydney').format('DD/MM/YYYY');
+        const endDate = moment(leave.endDate).tz('Australia/Sydney').format('DD/MM/YYYY');
+        const duration = leave.isFullDay ? 'Full Day' : `${leave.startTime} - ${leave.endTime}`;
+        const isMultiDay = startDate !== endDate;
+        
+        let emoji, leaveTypeText;
+        switch(leave.leaveType) {
+          case 'vacation':
+            emoji = '🏖️';
+            leaveTypeText = 'Vacationing';
+            break;
+          case 'wellness':
+            emoji = '🧘';
+            leaveTypeText = 'Wellness Day';
+            break;
+          case 'sick':
+            emoji = '🤒';
+            leaveTypeText = 'Sick Leave';
+            break;
+          case 'personal':
+            emoji = '👤';
+            leaveTypeText = 'Personal Leave';
+            break;
+          default:
+            emoji = '📝';
+            leaveTypeText = 'Other Leave';
+        }
+        
+        return {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `${emoji} *${leaveTypeText}*\n📅 ${startDate}${isMultiDay ? ` to ${endDate}` : ''}\n⏰ ${duration}\n📢 Channel: #${leave.channelName}${!leave.isFullDay ? `\n💬 ${leave.reason}` : ''}`
+          },
+          accessory: {
+            type: 'button',
+            text: {
+              type: 'plain_text',
+              text: 'Delete',
+              emoji: true
+            },
+            style: 'danger',
+            action_id: `delete_leave_${leave._id}`,
+            value: leave._id.toString()
+          }
+        };
+      });
+      
+      await client.chat.postEphemeral({
+        channel: command.channel_id,
+        user: command.user_id,
+        blocks: [
+          {
+            type: 'header',
+            text: {
+              type: 'plain_text',
+              text: '📅 My Leave Requests',
+              emoji: true
+            }
+          },
+          {
+            type: 'divider'
+          },
+          ...leaveBlocks,
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: '💡 Click "Delete" to remove a leave request. Use `/notify-leave` to submit new requests.'
+              }
+            ]
+          }
+        ]
+      });
+    } catch (error) {
+      console.error('Error fetching user leaves:', error);
+      await client.chat.postEphemeral({
+        channel: command.channel_id,
+        user: command.user_id,
+        text: '❌ Sorry, there was an error fetching your leaves.'
       });
     }
   });

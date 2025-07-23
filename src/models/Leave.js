@@ -56,6 +56,10 @@ const leaveSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  notifiedChannels: [{
+    channelId: String,
+    channelName: String
+  }],
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],

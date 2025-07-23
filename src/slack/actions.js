@@ -1,3 +1,4 @@
+const moment = require('moment-timezone');
 const Leave = require('../models/Leave');
 const TeamService = require('../services/TeamService');
 const DateUtils = require('../utils/dateUtils');
@@ -225,36 +226,44 @@ module.exports = (app) => {
         })
       );
       
-      // Create leave records for each selected channel
-      const leavePromises = channelInfo.map(async (channel) => {
-        // Auto-add user to team if not already a member
+      // Auto-add user to source channel team
+      await TeamService.autoAddUserToTeam(metadata.channelId, metadata.channelName, {
+        userId: metadata.userId,
+        userName: metadata.userName,
+        userEmail: metadata.userEmail
+      });
+      
+      // Auto-add user to all notified channel teams
+      for (const channel of channelInfo) {
         await TeamService.autoAddUserToTeam(channel.channelId, channel.channelName, {
           userId: metadata.userId,
           userName: metadata.userName,
           userEmail: metadata.userEmail
         });
-        
-        // Create leave record for this channel
-        const leave = new Leave({
-          userId: metadata.userId,
-          userName: metadata.userName,
-          userEmail: metadata.userEmail || 'not-provided@example.com',
-          leaveType,
-          startDate: start,
-          endDate: end,
-          startTime: isFullDay ? '09:00' : startTime,
-          endTime: isFullDay ? '17:00' : endTime,
-          isFullDay,
-          reason: reason.trim() || 'No reason provided',
-          channelId: channel.channelId,
-          channelName: channel.channelName
-        });
-        
-        return leave.save();
+      }
+      
+      // Create single leave record in source channel with notified channels
+      const leave = new Leave({
+        userId: metadata.userId,
+        userName: metadata.userName,
+        userEmail: metadata.userEmail || 'not-provided@example.com',
+        leaveType,
+        startDate: start,
+        endDate: end,
+        startTime: isFullDay ? '09:00' : startTime,
+        endTime: isFullDay ? '17:00' : endTime,
+        isFullDay,
+        reason: reason.trim() || 'No reason provided',
+        channelId: metadata.channelId,
+        channelName: metadata.channelName,
+        notifiedChannels: channelInfo.map(ch => ({
+          channelId: ch.channelId,
+          channelName: ch.channelName
+        }))
       });
       
-      // Save all leave records
-      await Promise.all(leavePromises);
+      // Save the leave record
+      await leave.save();
       
       // Send confirmation message
       const startDateStr = DateUtils.formatDateForDisplay(start);
@@ -509,6 +518,59 @@ module.exports = (app) => {
 
 
 
+
+  // Handle delete leave button clicks from /my-leaves
+  app.action(/^delete_leave_(.+)$/, async ({ ack, body, client }) => {
+    await ack();
+    
+    try {
+      const leaveId = body.actions[0].value;
+      const userId = body.user.id;
+      
+      console.log(`🔍 Delete leave request: ${leaveId} by user ${userId}`);
+      
+      // Find the leave
+      const leave = await Leave.findById(leaveId);
+      if (!leave) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ Leave not found. It may have been deleted already.'
+        });
+        return;
+      }
+      
+      // Check if user owns this leave
+      if (leave.userId !== userId) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ You can only delete your own leaves.'
+        });
+        return;
+      }
+      
+      // Delete the leave
+      await Leave.findByIdAndDelete(leaveId);
+      
+      console.log('✅ Leave deleted successfully:', leaveId);
+      
+      // Send confirmation
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: userId,
+        text: `✅ Your leave has been deleted successfully!\n\n*Deleted Leave:*\n• Type: ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}\n• Date: ${moment(leave.startDate).tz('Australia/Sydney').format('DD/MM/YYYY')} - ${moment(leave.endDate).tz('Australia/Sydney').format('DD/MM/YYYY')}`
+      });
+      
+    } catch (error) {
+      console.error('❌ Error deleting leave:', error);
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: body.user.id,
+        text: '❌ Sorry, there was an error deleting your leave. Please try again.'
+      });
+    }
+  });
 
   // Handle manage leave modal submission (fallback for any submit button)
   app.view('manage_leave_modal', async ({ ack, view, client, body }) => {
