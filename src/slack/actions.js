@@ -641,6 +641,26 @@ module.exports = (app) => {
       });
       
       console.log('🔍 Modal open result:', result);
+      
+    } catch (error) {
+      console.error('❌ Error handling edit leave action:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+      
+      // Try to send error message to user
+      try {
+        const channelId = body.channel?.id || body.channel || body.user.id;
+        await client.chat.postEphemeral({
+          channel: channelId,
+          user: body.user.id,
+          text: '❌ Sorry, there was an error processing your edit request. Please try again.'
+        });
+      } catch (ephemeralError) {
+        console.error('❌ Could not send error message:', ephemeralError);
+      }
+    }
   });
 
   // Handle edit leave modal submission (simplified - only leave type and dates)
