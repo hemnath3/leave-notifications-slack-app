@@ -105,49 +105,63 @@ class TeamService {
       const allTeams = await this.getAllActiveTeams();
       console.log(`🔍 Total teams with app installed: ${allTeams.length}`);
       
-      // Get all channels user is a member of
-      const userConversations = await slackClient.users.conversations({
-        user: userId,
-        types: 'public_channel,private_channel',
-        limit: 100
-      });
+      // Step 1: Get all channels user is a member of (using user token if available)
+      let userChannels = [];
+      try {
+        const userConversations = await slackClient.users.conversations({
+          user: userId,
+          types: 'public_channel,private_channel',
+          limit: 1000
+        });
+        userChannels = userConversations.channels || [];
+        console.log(`🔍 User is in ${userChannels.length} total channels`);
+      } catch (userError) {
+        console.log(`⚠️ Could not get user conversations:`, userError.message);
+        // Fallback: try to get from team memberships
+        userChannels = allTeams
+          .filter(team => team.members.some(member => member.userId === userId))
+          .map(team => ({
+            id: team.channelId,
+            name: team.channelName,
+            is_private: false // We don't know, assume public
+          }));
+      }
       
-      console.log(`🔍 User is in ${userConversations.channels?.length || 0} total channels`);
+      // Step 2: Get all channels where app is installed (using bot token)
+      let appChannels = [];
+      try {
+        const conversationsList = await slackClient.conversations.list({
+          types: 'public_channel,private_channel',
+          limit: 1000
+        });
+        appChannels = conversationsList.channels || [];
+        console.log(`🔍 App has access to ${appChannels.length} channels`);
+      } catch (botError) {
+        console.log(`⚠️ Could not get conversations list:`, botError.message);
+        // Fallback: use team data
+        appChannels = allTeams.map(team => ({
+          id: team.channelId,
+          name: team.channelName,
+          is_private: false
+        }));
+      }
       
-      // Filter to only channels where app is installed AND user is a member
+      // Step 3: Intersect the two results
       const availableChannels = [];
+      const userChannelIds = new Set(userChannels.map(c => c.id));
+      const appChannelIds = new Set(appChannels.map(c => c.id));
       
-      for (const channel of userConversations.channels || []) {
-        // Check if this channel has a team (app is installed)
-        const existingTeam = allTeams.find(team => team.channelId === channel.id);
-        if (existingTeam) {
-          console.log(`🔍 Found available channel: #${channel.name} (${channel.id}) - Private: ${channel.is_private}`);
+      for (const userChannel of userChannels) {
+        if (appChannelIds.has(userChannel.id)) {
+          // This channel is both user-accessible and app-installed
+          const appChannel = appChannels.find(c => c.id === userChannel.id);
           
-          // For private channels, try to get more detailed info
-          let channelName = channel.name;
-          let isPrivate = channel.is_private || false;
-          
-          if (isPrivate) {
-            try {
-              // Try to get more detailed channel info for private channels
-              const channelInfo = await slackClient.conversations.info({
-                channel: channel.id
-              });
-              
-              if (channelInfo.channel && channelInfo.channel.name) {
-                channelName = channelInfo.channel.name;
-                console.log(`🔍 Got detailed info for private channel: #${channelName}`);
-              }
-            } catch (infoError) {
-              console.log(`⚠️ Could not get detailed info for private channel ${channel.id}:`, infoError.message);
-              // Keep the name from userConversations
-            }
-          }
+          console.log(`🔍 Found available channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
           
           availableChannels.push({
-            channelId: channel.id,
-            channelName: channelName,
-            isPrivate: isPrivate
+            channelId: userChannel.id,
+            channelName: userChannel.name,
+            isPrivate: userChannel.is_private || false
           });
         }
       }
