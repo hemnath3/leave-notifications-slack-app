@@ -131,6 +131,7 @@ module.exports = (app) => {
       
       // Validate required fields (only for Other leave type)
       if (!reason || reason.trim() === '') {
+        await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
           text: '❌ Error: Please provide a reason for your leave request.'
