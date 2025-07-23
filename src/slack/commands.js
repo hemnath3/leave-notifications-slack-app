@@ -54,6 +54,18 @@ module.exports = (app) => {
           },
           blocks: [
             {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: '📋 *Leave Request Guidelines:*\n• Start date: Today or future (max 3 months)\n• End date: On or after start date (max 3 months)\n• Reason required only for "Other" leave type\n• Only "Other" can be partial day'
+                }
+              ]
+            },
+            {
+              type: 'divider'
+            },
+            {
               type: 'input',
               block_id: 'leave_type',
               label: {
@@ -166,6 +178,11 @@ module.exports = (app) => {
                   emoji: true
                 },
                 initial_date: today
+              },
+              hint: {
+                type: 'plain_text',
+                text: '📅 Select today or a future date (max 3 months ahead)',
+                emoji: true
               }
             },
             {
@@ -184,6 +201,11 @@ module.exports = (app) => {
                   emoji: true
                 },
                 initial_date: today
+              },
+              hint: {
+                type: 'plain_text',
+                text: '📅 Select a date on or after start date (max 3 months ahead)',
+                emoji: true
               }
             },
             {
