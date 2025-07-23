@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 9:00 AM AEST
-    cron.schedule('0 9 * * *', async () => {
+    // Schedule daily morning notification at 9:20 AM AEST (for debugging)
+    cron.schedule('20 9 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -66,6 +66,12 @@ class NotificationScheduler {
         endDate: { $gte: today }
       }).sort({ startDate: 1 });
       
+      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
+      console.log(`🔍 Scheduler: Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}`);
+      leaves.forEach(leave => {
+        console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
+      });
+      
       if (leaves.length === 0) {
         // Send a message that no one is on leave today
         await this.slackApp.client.chat.postMessage({
@@ -94,12 +100,12 @@ class NotificationScheduler {
       const todayKey = today.toISOString().split('T')[0];
       const todaysLeaves = leavesByDate[todayKey] || [];
       
-      // Only show leaves that actually start today (not leaves that start tomorrow but overlap with today)
-      const currentLeaves = todaysLeaves.filter(leave => {
-        const startDate = new Date(leave.startDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === todayKey; // Only leaves that start exactly today
-      });
+      // Show all leaves that overlap with today (including ongoing leaves)
+      const currentLeaves = todaysLeaves;
+      
+      console.log(`🔍 Scheduler: Today's key: ${todayKey}`);
+      console.log(`🔍 Scheduler: Today's leaves: ${todaysLeaves.length}`);
+      console.log(`🔍 Scheduler: Current leaves: ${currentLeaves.length}`);
       
       // Create the base message structure
       const blocks = [
