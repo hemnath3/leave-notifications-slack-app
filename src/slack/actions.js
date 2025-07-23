@@ -212,7 +212,10 @@ module.exports = (app) => {
   });
 
   // Handle manage leave button click
+  console.log('🔍 Registering manage_leave action handler');
   app.action('manage_leave', async ({ ack, body, client }) => {
+    console.log('🔍 Manage leave action handler called');
+    console.log('🔍 Action body:', JSON.stringify(body, null, 2));
     await ack();
     
     try {
@@ -320,7 +323,10 @@ module.exports = (app) => {
   });
 
   // Handle delete leave action
+  console.log('🔍 Registering delete_leave action handler');
   app.action('delete_leave', async ({ ack, body, client }) => {
+    console.log('🔍 Delete leave action handler called');
+    console.log('🔍 Action body:', JSON.stringify(body, null, 2));
     await ack();
     
     try {
@@ -413,7 +419,10 @@ module.exports = (app) => {
   });
 
   // Handle edit leave action
+  console.log('🔍 Registering edit_leave action handler');
   app.action('edit_leave', async ({ ack, body, client }) => {
+    console.log('🔍 Edit leave action handler called');
+    console.log('🔍 Action body:', JSON.stringify(body, null, 2));
     await ack();
     
     try {
