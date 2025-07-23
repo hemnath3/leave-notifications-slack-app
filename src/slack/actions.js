@@ -64,7 +64,7 @@ module.exports = (app) => {
       
       const start = new Date(startDate + 'T00:00:00');
       const end = new Date(endDate + 'T23:59:59');
-      const today = DateUtils.getCurrentDate().startOf('day').toDate();
+      const startOfToday = DateUtils.getCurrentDate().startOf('day');
       
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         await client.chat.postEphemeral({
@@ -75,8 +75,8 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate: No previous dates allowed
-      if (start < today) {
+      // Validate: No previous dates allowed (check against start of today)
+      if (start < startOfToday.toDate()) {
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
@@ -129,16 +129,6 @@ module.exports = (app) => {
       // Calculate working days for display
       const workingDays = DateUtils.getWorkingDays(start, end);
       
-      // Validate required fields (only for Other leave type)
-      if (!reason || reason.trim() === '') {
-        await client.chat.postEphemeral({
-          channel: metadata.channelId,
-          user: metadata.userId,
-          text: '❌ Error: Please provide a reason for your leave request.'
-        });
-        return;
-      }
-      
       // Create leave record
       const leave = new Leave({
         userId: metadata.userId,
@@ -150,7 +140,7 @@ module.exports = (app) => {
         startTime: isFullDay ? '09:00' : startTime,
         endTime: isFullDay ? '17:00' : endTime,
         isFullDay,
-        reason: reason.trim(),
+        reason: reason.trim() || 'No reason provided', // Provide default for non-Other leave types
         channelId: metadata.channelId,
         channelName: metadata.channelName
       });
@@ -169,10 +159,11 @@ module.exports = (app) => {
       
       // Send confirmation to user
       try {
+        const reasonDisplay = reason.trim() || 'No reason provided';
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reason}\n\nYour leave will be included in the daily reminder at 9 AM.`
+          text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reasonDisplay}\n\nYour leave will be included in the daily reminder at 9 AM.`
         });
       } catch (userError) {
         console.log('⚠️ Could not send confirmation to user, but leave was saved successfully');
@@ -180,7 +171,7 @@ module.exports = (app) => {
         try {
           await client.chat.postMessage({
             channel: metadata.userId,
-            text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reason}\n\nYour leave will be included in the daily reminder at 9 AM.`
+            text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reasonDisplay}\n\nYour leave will be included in the daily reminder at 9 AM.`
           });
         } catch (dmError) {
           console.log('⚠️ Could not send DM either, but leave was saved successfully');
