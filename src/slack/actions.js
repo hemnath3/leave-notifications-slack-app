@@ -471,9 +471,10 @@ module.exports = (app) => {
       console.log('🔍 Channel ID for modal:', channelId);
       
       console.log('🔍 Opening edit modal...');
-      await client.views.open({
-        trigger_id: body.trigger_id,
-        view: {
+      try {
+        const result = await client.views.open({
+          trigger_id: body.trigger_id,
+          view: {
           type: 'modal',
           callback_id: 'edit_leave_modal',
           title: {
@@ -640,13 +641,27 @@ module.exports = (app) => {
         }
       });
       
+      console.log('🔍 Modal open result:', result);
+      
     } catch (error) {
-      console.error('❌ Error handling edit leave action:', error);
-      await client.chat.postEphemeral({
-        channel: body.channel.id,
-        user: body.user.id,
-        text: '❌ Sorry, there was an error processing your edit request. Please try again.'
+      console.error('❌ Error opening edit modal:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        data: error.data
       });
+      
+      // Try to send error message to user
+      try {
+        const channelId = body.channel?.id || body.channel || body.user.id;
+        await client.chat.postEphemeral({
+          channel: channelId,
+          user: body.user.id,
+          text: '❌ Sorry, there was an error opening the edit modal. Please try again.'
+        });
+      } catch (ephemeralError) {
+        console.error('❌ Could not send error message:', ephemeralError);
+      }
     }
   });
 
