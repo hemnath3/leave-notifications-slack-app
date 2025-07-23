@@ -103,13 +103,52 @@ class TeamService {
     try {
       // Get all channels where the app is installed (active teams)
       const allTeams = await this.getAllActiveTeams();
+      console.log(`🔍 Total teams with app installed: ${allTeams.length}`);
       
       // Filter to only channels where user is a member
       const userChannels = allTeams.filter(team => 
         team.members.some(member => member.userId === userId)
       );
       
-      console.log(`Found ${userChannels.length} channels where user ${userId} is a member`);
+      console.log(`🔍 Found ${userChannels.length} channels where user ${userId} is a member`);
+      console.log(`🔍 User channels:`, userChannels.map(t => `#${t.channelName} (${t.channelId})`));
+      
+      // If user is only in one channel, let's try to find other channels they might be in
+      if (userChannels.length <= 1) {
+        console.log(`🔍 User only in ${userChannels.length} channel(s), trying to find more...`);
+        
+        // Try to get user's conversations (channels they're in)
+        try {
+          const userConversations = await slackClient.users.conversations({
+            user: userId,
+            types: 'public_channel,private_channel',
+            limit: 100
+          });
+          
+          console.log(`🔍 User is in ${userConversations.channels?.length || 0} total channels`);
+          
+          // For each channel user is in, check if app is installed
+          for (const channel of userConversations.channels || []) {
+            // Skip if already in userChannels
+            if (userChannels.some(uc => uc.channelId === channel.id)) {
+              continue;
+            }
+            
+            // Check if this channel has a team (app is installed)
+            const existingTeam = allTeams.find(team => team.channelId === channel.id);
+            if (existingTeam) {
+              console.log(`🔍 Found additional channel: #${channel.name} (${channel.id})`);
+              userChannels.push({
+                channelId: channel.id,
+                channelName: channel.name,
+                members: existingTeam.members
+              });
+            }
+          }
+        } catch (convError) {
+          console.log(`⚠️ Could not get user conversations:`, convError.message);
+        }
+      }
       
       // Get channel information for each channel
       const verifiedChannels = [];
@@ -138,7 +177,7 @@ class TeamService {
         }
       }
       
-      console.log(`Processed ${verifiedChannels.length} channels for user ${userId}:`, 
+      console.log(`✅ Final result: ${verifiedChannels.length} channels for user ${userId}:`, 
         verifiedChannels.map(c => `#${c.channelName}${c.isPrivate ? ' (private)' : ''}`));
       
       return verifiedChannels;
