@@ -44,26 +44,12 @@ module.exports = (app) => {
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
       
-      // Extract selected channels from the three dropdowns
+      // Extract selected channels from the multi-select
       const selectedChannels = [];
-      const channel1Key = Object.keys(values.channel_selection_1 || {})[0];
-      const channel2Key = Object.keys(values.channel_selection_2 || {})[0];
-      const channel3Key = Object.keys(values.channel_selection_3 || {})[0];
+      const channelSelectionKey = Object.keys(values.channel_selection || {})[0];
       
-      if (channel1Key && values.channel_selection_1[channel1Key].selected_option) {
-        selectedChannels.push({
-          value: values.channel_selection_1[channel1Key].selected_option.value
-        });
-      }
-      if (channel2Key && values.channel_selection_2[channel2Key].selected_option) {
-        selectedChannels.push({
-          value: values.channel_selection_2[channel2Key].selected_option.value
-        });
-      }
-      if (channel3Key && values.channel_selection_3[channel3Key].selected_option) {
-        selectedChannels.push({
-          value: values.channel_selection_3[channel3Key].selected_option.value
-        });
+      if (channelSelectionKey && values.channel_selection[channelSelectionKey].selected_options) {
+        selectedChannels.push(...values.channel_selection[channelSelectionKey].selected_options);
       }
       
       console.log('🔍 Extracted values:', {

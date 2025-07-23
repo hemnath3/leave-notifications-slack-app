@@ -108,7 +108,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Search and select up to 3 channels to notify about your leave. Private channels are marked with 🔒. Your selections will be remembered for next time.'
+                  text: '📢 *Channel Selection:* Type to search and select up to 3 channels to notify about your leave. Private channels are marked with 🔒. Your selections will be remembered for next time.'
                 }
               ]
             },
@@ -318,19 +318,20 @@ module.exports = (app) => {
             },
             {
               type: 'input',
-              block_id: 'channel_selection_1',
+              block_id: 'channel_selection',
               label: {
                 type: 'plain_text',
-                text: 'Notify Channel 1',
+                text: 'Notify Channels (Up to 3)',
                 emoji: true
               },
               element: {
-                type: 'static_select',
+                type: 'multi_static_select',
                 placeholder: {
                   type: 'plain_text',
-                  text: 'Search and select a channel',
+                  text: 'Search and select channels',
                   emoji: true
                 },
+                max_selected_items: 3,
                 options: userChannels.map(channel => ({
                   text: {
                     type: 'plain_text',
@@ -345,69 +346,11 @@ module.exports = (app) => {
                   }
                 }))
               },
-              optional: true
-            },
-            {
-              type: 'input',
-              block_id: 'channel_selection_2',
-              label: {
+              hint: {
                 type: 'plain_text',
-                text: 'Notify Channel 2 (Optional)',
+                text: 'Type to search channels. Select up to 3 channels to notify about your leave.',
                 emoji: true
-              },
-              element: {
-                type: 'static_select',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Search and select a channel',
-                  emoji: true
-                },
-                options: userChannels.map(channel => ({
-                  text: {
-                    type: 'plain_text',
-                    text: `#${channel.channelName}${channel.isPrivate ? ' 🔒' : ''}`,
-                    emoji: true
-                  },
-                  value: channel.channelId,
-                  description: {
-                    type: 'plain_text',
-                    text: channel.isPrivate ? 'Private channel' : 'Public channel',
-                    emoji: false
-                  }
-                }))
-              },
-              optional: true
-            },
-            {
-              type: 'input',
-              block_id: 'channel_selection_3',
-              label: {
-                type: 'plain_text',
-                text: 'Notify Channel 3 (Optional)',
-                emoji: true
-              },
-              element: {
-                type: 'static_select',
-                placeholder: {
-                  type: 'plain_text',
-                  text: 'Search and select a channel',
-                  emoji: true
-                },
-                options: userChannels.map(channel => ({
-                  text: {
-                    type: 'plain_text',
-                    text: `#${channel.channelName}${channel.isPrivate ? ' 🔒' : ''}`,
-                    emoji: true
-                  },
-                  value: channel.channelId,
-                  description: {
-                    type: 'plain_text',
-                    text: channel.isPrivate ? 'Private channel' : 'Public channel',
-                    emoji: false
-                  }
-                }))
-              },
-              optional: true
+              }
             }
           ],
           private_metadata: JSON.stringify({
