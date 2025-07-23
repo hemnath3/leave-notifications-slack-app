@@ -45,8 +45,8 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
-      const today = DateUtils.getCurrentDate().startOf('day').toDate();
-      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day').toDate();
+      const today = DateUtils.getCurrentDate().startOf('day');
+      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
       
       // Get team info
       const team = await Team.getTeamByChannel(channelId);
@@ -62,12 +62,12 @@ class NotificationScheduler {
       const leaves = await Leave.find({
         channelId: channelId,
         userId: { $in: teamMemberIds },
-        startDate: { $lte: tomorrow },
-        endDate: { $gte: today }
+        startDate: { $lte: tomorrow.toDate() },
+        endDate: { $gte: today.toDate() }
       }).sort({ startDate: 1 });
       
-      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
-      console.log(`🔍 Scheduler: Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}`);
+      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
+      console.log(`🔍 Scheduler: Today: ${today.format()}, Tomorrow: ${tomorrow.format()}`);
       leaves.forEach(leave => {
         console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
       });
@@ -84,11 +84,11 @@ class NotificationScheduler {
       // Group leaves by date
       const leavesByDate = {};
       leaves.forEach(leave => {
-        const start = new Date(leave.startDate);
-        const end = new Date(leave.endDate);
+        const start = moment(leave.startDate).tz('Australia/Sydney');
+        const end = moment(leave.endDate).tz('Australia/Sydney');
         
-        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-          const dateKey = d.toISOString().split('T')[0];
+        for (let d = start.clone(); d.isSameOrBefore(end); d.add(1, 'day')) {
+          const dateKey = d.format('YYYY-MM-DD');
           if (!leavesByDate[dateKey]) {
             leavesByDate[dateKey] = [];
           }
@@ -97,7 +97,7 @@ class NotificationScheduler {
       });
       
       // Send reminder for today
-      const todayKey = today.toISOString().split('T')[0];
+      const todayKey = today.format('YYYY-MM-DD');
       const todaysLeaves = leavesByDate[todayKey] || [];
       
       // Show all leaves that overlap with today (including ongoing leaves)
