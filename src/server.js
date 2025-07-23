@@ -38,26 +38,20 @@ expressApp.use(limiter);
 // Determine if we should use Socket Mode or HTTP webhooks
 const useSocketMode = process.env.USE_SOCKET_MODE === 'true' || process.env.NODE_ENV !== 'production';
 
-let slackApp;
+// For now, let's use Socket Mode for both development and production
+// This is more reliable and doesn't require complex webhook setup
+slackApp = new App({
+  token: process.env.SLACK_BOT_TOKEN,
+  signingSecret: process.env.SLACK_SIGNING_SECRET,
+  socketMode: true,
+  appToken: process.env.SLACK_APP_TOKEN,
+  logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+});
 
 if (useSocketMode) {
-  // Socket Mode for development
-  slackApp = new App({
-    token: process.env.SLACK_BOT_TOKEN,
-    signingSecret: process.env.SLACK_SIGNING_SECRET,
-    socketMode: true,
-    appToken: process.env.SLACK_APP_TOKEN,
-    logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  });
   console.log('🔧 Using Socket Mode (development)');
 } else {
-  // HTTP webhooks for production
-  slackApp = new App({
-    token: process.env.SLACK_BOT_TOKEN,
-    signingSecret: process.env.SLACK_SIGNING_SECRET,
-    logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  });
-  console.log('🚀 Using HTTP webhooks (production)');
+  console.log('🔧 Using Socket Mode (production - simplified setup)');
 }
 
 
@@ -70,31 +64,15 @@ require('./slack/commands')(slackApp);
 // API Routes
 expressApp.use('/api/leaves', leaveRoutes);
 
-// Slack webhook endpoint (for production HTTP mode)
-if (!useSocketMode) {
-  // For HTTP webhooks, we need to create the receiver manually
-  const { createExpressReceiver } = require('@slack/bolt');
-  const receiver = createExpressReceiver({
-    signingSecret: process.env.SLACK_SIGNING_SECRET,
-    endpoints: {
-      events: '/slack/events'
-    }
-  });
-  
-  // Attach the receiver to the Slack app
-  slackApp.receiver = receiver;
-  
-  // Mount the receiver routes
-  expressApp.use('/slack/events', receiver.router);
-  console.log('📡 Slack webhook endpoint available at /slack/events');
-}
+// Note: Using Socket Mode for both development and production
+// This eliminates the need for complex webhook configuration
 
 // Health check endpoint
 expressApp.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    mode: useSocketMode ? 'socket' : 'webhook',
+    mode: 'socket',
     environment: process.env.NODE_ENV || 'development'
   });
 });
@@ -111,12 +89,8 @@ mongoose.connect(process.env.MONGODB_URI)
     
     // Start Slack app
     (async () => {
-      if (useSocketMode) {
-        await slackApp.start();
-        console.log('⚡️ Slack app is running in Socket Mode!');
-      } else {
-        console.log('⚡️ Slack app is ready for HTTP webhooks!');
-      }
+      await slackApp.start();
+      console.log('⚡️ Slack app is running in Socket Mode!');
       
       // Start notification scheduler
       const scheduler = new NotificationScheduler(slackApp);
@@ -132,9 +106,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  if (useSocketMode) {
-    await slackApp.stop();
-  }
+  await slackApp.stop();
   process.exit(0);
 });
 
