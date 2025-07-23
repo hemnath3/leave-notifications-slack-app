@@ -60,7 +60,7 @@ if (useSocketMode) {
   console.log('🚀 Using HTTP webhooks (production)');
 }
 
-const slackApp = new App(slackAppConfig);
+
 
 // Import Slack event handlers
 require('./slack/events')(slackApp);
