@@ -80,7 +80,7 @@ module.exports = (app) => {
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: '❌ Error: Start date cannot be in the past. Please select today or a future date.'
+          text: `❌ Error: Start date (${DateUtils.formatDateForDisplay(start)}) cannot be in the past. Today is ${DateUtils.formatDateForDisplay(startOfToday.toDate())}. Please select today or a future date.`
         });
         return;
       }
@@ -90,7 +90,7 @@ module.exports = (app) => {
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: '❌ Error: End date cannot be before start date.'
+          text: `❌ Error: End date (${DateUtils.formatDateForDisplay(end)}) cannot be before start date (${DateUtils.formatDateForDisplay(start)}). Please select a date on or after the start date.`
         });
         return;
       }
