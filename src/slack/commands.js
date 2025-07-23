@@ -103,15 +103,7 @@ module.exports = (app) => {
                 }
               ]
             },
-            {
-              type: 'context',
-              elements: [
-                {
-                  type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Choose up to 3 channels to notify your leaves other than your current channel. # for public channels, 🔒 for private channels.'
-                }
-              ]
-            },
+
             {
               type: 'divider'
             },
@@ -312,6 +304,15 @@ module.exports = (app) => {
                 },
                 max_length: 500
               }
+            },
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: '📢 *Channel Selection:* Choose up to 3 channels to notify your leaves other than your current channel'
+                }
+              ]
             },
             {
               type: 'input',
