@@ -47,22 +47,28 @@ module.exports = (app) => {
       // Extract selected channels from dropdowns
       const selectedChannels = [];
       
-      // Channel 1 (required)
+      // Channel 1 (pre-selected by default)
       const channel1Key = Object.keys(values.channel_1 || {})[0];
       if (channel1Key && values.channel_1[channel1Key].selected_option) {
         selectedChannels.push(values.channel_1[channel1Key].selected_option);
       }
       
-      // Channel 2 (optional)
+      // Channel 2
       const channel2Key = Object.keys(values.channel_2 || {})[0];
       if (channel2Key && values.channel_2[channel2Key].selected_option && values.channel_2[channel2Key].selected_option.value !== 'none') {
         selectedChannels.push(values.channel_2[channel2Key].selected_option);
       }
       
-      // Channel 3 (optional)
+      // Channel 3
       const channel3Key = Object.keys(values.channel_3 || {})[0];
       if (channel3Key && values.channel_3[channel3Key].selected_option && values.channel_3[channel3Key].selected_option.value !== 'none') {
         selectedChannels.push(values.channel_3[channel3Key].selected_option);
+      }
+      
+      // Channel 4
+      const channel4Key = Object.keys(values.channel_4 || {})[0];
+      if (channel4Key && values.channel_4[channel4Key].selected_option && values.channel_4[channel4Key].selected_option.value !== 'none') {
+        selectedChannels.push(values.channel_4[channel4Key].selected_option);
       }
       
       console.log('🔍 Extracted values:', {
@@ -160,12 +166,12 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate: Maximum 3 channels allowed
-      if (selectedChannels.length > 3) {
+      // Validate: Maximum 4 channels allowed
+      if (selectedChannels.length > 4) {
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,
-          text: '❌ Error: You can only select up to 3 channels to notify about your leave.'
+          text: '❌ Error: You can only select up to 4 channels to notify about your leave.'
         });
         return;
       }

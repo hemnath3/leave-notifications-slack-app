@@ -108,7 +108,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Use the dropdowns to select up to 3 channels to notify about your leave. # for public channels, 🔒 for private channels. Current channel is pre-selected.'
+                  text: '📢 *Channel Selection:* Choose up to 4 channels that you\'re part of and has this APP installed to notify your leaves to. # for public channels, 🔒 for private channels.'
                 }
               ]
             },
@@ -321,7 +321,7 @@ module.exports = (app) => {
               block_id: 'channel_1',
               label: {
                 type: 'plain_text',
-                text: 'Channel 1 (Current channel pre-selected)',
+                text: 'Channel 1',
                 emoji: true
               },
               element: {
@@ -355,7 +355,7 @@ module.exports = (app) => {
               block_id: 'channel_2',
               label: {
                 type: 'plain_text',
-                text: 'Channel 2 (Optional)',
+                text: 'Channel 2',
                 emoji: true
               },
               element: {
@@ -399,7 +399,51 @@ module.exports = (app) => {
               block_id: 'channel_3',
               label: {
                 type: 'plain_text',
-                text: 'Channel 3 (Optional)',
+                text: 'Channel 3',
+                emoji: true
+              },
+              element: {
+                type: 'static_select',
+                placeholder: {
+                  type: 'plain_text',
+                  text: 'Select a channel',
+                  emoji: true
+                },
+                options: [
+                  {
+                    text: {
+                      type: 'plain_text',
+                      text: 'None',
+                      emoji: true
+                    },
+                    value: 'none'
+                  },
+                  ...userChannels.map((channel) => ({
+                    text: {
+                      type: 'plain_text',
+                      text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
+                      emoji: true
+                    },
+                    value: channel.channelId
+                  }))
+                ],
+                initial_option: {
+                  text: {
+                    type: 'plain_text',
+                    text: 'None',
+                    emoji: true
+                  },
+                  value: 'none'
+                }
+              },
+              optional: true
+            },
+            {
+              type: 'input',
+              block_id: 'channel_4',
+              label: {
+                type: 'plain_text',
+                text: 'Channel 4',
                 emoji: true
               },
               element: {
