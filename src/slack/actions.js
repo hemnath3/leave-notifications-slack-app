@@ -366,4 +366,53 @@ module.exports = (app) => {
     }
   });
 
+  // Handle edit leave action
+  app.action('edit_leave', async ({ ack, body, client }) => {
+    await ack();
+    
+    try {
+      const leaveId = body.actions[0].value;
+      const userId = body.user.id;
+      
+      console.log('✏️ Edit leave requested for leave ID:', leaveId, 'by user:', userId);
+      
+      // Get the leave details
+      const leave = await Leave.findById(leaveId);
+      
+      if (!leave) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ Leave not found. It may have been deleted already.'
+        });
+        return;
+      }
+      
+      // Check if user owns this leave
+      if (leave.userId !== userId) {
+        await client.chat.postEphemeral({
+          channel: body.channel.id,
+          user: userId,
+          text: '❌ You can only edit your own leaves.'
+        });
+        return;
+      }
+      
+      // For now, send a message that edit functionality is coming soon
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: userId,
+        text: `✏️ *Edit functionality is coming soon!*\n\nFor now, you can:\n1. Delete this leave using the "Delete Leave" button\n2. Create a new leave request with the updated details\n\n*Current Leave Details:*\n• Type: ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}\n• Date: ${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}\n• Duration: ${leave.isFullDay ? 'Full Day' : `${leave.startTime} - ${leave.endTime}`}\n• Reason: ${leave.reason || 'None'}`
+      });
+      
+    } catch (error) {
+      console.error('❌ Error handling edit leave action:', error);
+      await client.chat.postEphemeral({
+        channel: body.channel.id,
+        user: body.user.id,
+        text: '❌ Sorry, there was an error processing your edit request. Please try again.'
+      });
+    }
+  });
+
 }; 

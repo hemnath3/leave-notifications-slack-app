@@ -88,11 +88,11 @@ class NotificationScheduler {
       const todayKey = today.toISOString().split('T')[0];
       const todaysLeaves = leavesByDate[todayKey] || [];
       
-      // Only show leaves that start today or in the future (not past leaves)
+      // Only show leaves that actually start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = todaysLeaves.filter(leave => {
         const startDate = new Date(leave.startDate);
         const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr >= todayKey;
+        return startDateStr === todayKey; // Only leaves that start exactly today
       });
       
       // Create the base message structure
