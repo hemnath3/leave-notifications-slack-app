@@ -364,6 +364,7 @@ class NotificationScheduler {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
       const today = DateUtils.getCurrentDate().startOf('day');
+      console.log('📅 Today is:', today.format('YYYY-MM-DD'));
       const nextThreeDays = [];
       
       // Get next 3 working days
@@ -394,9 +395,27 @@ class NotificationScheduler {
           channelId: channelId,
           startDate: { $lte: endOfDay },
           endDate: { $gte: startOfDay }
+        }).lean();
+        
+        // Filter out leaves that are already shown in today's section
+        const filteredLeaves = leaves.filter(leave => {
+          const leaveStart = new Date(leave.startDate);
+          const leaveEnd = new Date(leave.endDate);
+          const todayStart = today.toDate();
+          const todayEnd = today.endOf('day').toDate();
+          
+          // Only include leaves that don't overlap with today
+          return !(leaveStart <= todayEnd && leaveEnd >= todayStart);
         });
         
-        console.log(`📋 Found ${leaves.length} leaves for ${date.format('YYYY-MM-DD')}`);
+        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
+        
+        if (filteredLeaves.length > 0) {
+          upcomingLeaves.push({
+            date: date,
+            leaves: filteredLeaves
+          });
+        }
         
         if (leaves.length > 0) {
           upcomingLeaves.push({
