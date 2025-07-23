@@ -330,6 +330,43 @@ module.exports = (app) => {
               }
             }
             
+            // Validate dates are not more than 3 months in the future
+            if (startDate) {
+              const startDateObj = new Date(startDate + 'T00:00:00');
+              const threeMonthsFromNow = new Date();
+              threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+              threeMonthsFromNow.setHours(0, 0, 0, 0);
+              
+              console.log('📅 3-month validation:', { 
+                startDateObj: startDateObj.toISOString(), 
+                threeMonthsFromNow: threeMonthsFromNow.toISOString(),
+                isTooFar: startDateObj > threeMonthsFromNow 
+              });
+              
+              if (startDateObj > threeMonthsFromNow) {
+                console.log('❌ 3-month validation failed for start date');
+                errors[startDateKey] = 'Cannot apply leave more than 3 months in advance. Please select a date within the next 3 months.';
+              }
+            }
+            
+            if (endDate) {
+              const endDateObj = new Date(endDate + 'T00:00:00');
+              const threeMonthsFromNow = new Date();
+              threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+              threeMonthsFromNow.setHours(0, 0, 0, 0);
+              
+              console.log('📅 3-month validation for end date:', { 
+                endDateObj: endDateObj.toISOString(), 
+                threeMonthsFromNow: threeMonthsFromNow.toISOString(),
+                isTooFar: endDateObj > threeMonthsFromNow 
+              });
+              
+              if (endDateObj > threeMonthsFromNow) {
+                console.log('❌ 3-month validation failed for end date');
+                errors[endDateKey] = 'Cannot apply leave more than 3 months in advance. Please select a date within the next 3 months.';
+              }
+            }
+            
             // Validate reason is required for "Other" leave type
             if (leaveType === 'other' && (!reason || reason.trim() === '')) {
               console.log('❌ Reason validation failed');
