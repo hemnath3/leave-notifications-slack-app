@@ -38,21 +38,25 @@ expressApp.use(limiter);
 // Determine if we should use Socket Mode or HTTP webhooks
 const useSocketMode = process.env.USE_SOCKET_MODE === 'true' || process.env.NODE_ENV !== 'production';
 
-// Initialize Slack app with appropriate configuration
-const slackAppConfig = {
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
-  logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-};
+let slackApp;
 
 if (useSocketMode) {
   // Socket Mode for development
-  slackAppConfig.socketMode = true;
-  slackAppConfig.appToken = process.env.SLACK_APP_TOKEN;
+  slackApp = new App({
+    token: process.env.SLACK_BOT_TOKEN,
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    socketMode: true,
+    appToken: process.env.SLACK_APP_TOKEN,
+    logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  });
   console.log('🔧 Using Socket Mode (development)');
 } else {
   // HTTP webhooks for production
-  slackAppConfig.socketMode = false;
+  slackApp = new App({
+    token: process.env.SLACK_BOT_TOKEN,
+    signingSecret: process.env.SLACK_SIGNING_SECRET,
+    logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  });
   console.log('🚀 Using HTTP webhooks (production)');
 }
 
