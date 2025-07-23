@@ -214,8 +214,6 @@ class NotificationScheduler {
       await this.addUpcomingLeavesSection(blocks, channelId);
       console.log('✅ Upcoming leaves section added');
       
-
-      
       try {
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
@@ -228,6 +226,7 @@ class NotificationScheduler {
           console.error(`Error sending daily notification for channel ${channelId}:`, error);
         }
       }
+    }
     } catch (error) {
       console.error(`Error processing daily notification for channel ${channelId}:`, error);
     }
