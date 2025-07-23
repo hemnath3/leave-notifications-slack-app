@@ -5,6 +5,15 @@ module.exports = (app) => {
   // Handle modal submission
   app.view('leave_request_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Modal submission handler called');
+    console.log('🔍 Callback ID:', view.callback_id);
+    
+    // If this is an edit modal, don't handle it here
+    if (view.callback_id === 'edit_leave_modal') {
+      console.log('🔍 Edit modal detected in leave_request_modal handler - ignoring');
+      await ack();
+      return;
+    }
+    
     await ack();
     
     try {
@@ -626,6 +635,7 @@ module.exports = (app) => {
   });
 
   // Handle edit leave modal submission (simplified - only leave type and dates)
+  console.log('🔍 Registering edit_leave_modal view handler');
   app.view('edit_leave_modal', async ({ ack, view, client, body }) => {
     console.log('🔍 Edit leave modal submission handler called');
     console.log('🔍 View data:', JSON.stringify(view, null, 2));
