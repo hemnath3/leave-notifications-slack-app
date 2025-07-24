@@ -16,10 +16,12 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:43 PM AEST (for debugging)
-    cron.schedule('43 13 * * *', async () => {
-      console.log('Running daily leave notification...');
-      await this.sendDailyNotifications();
+    // Schedule daily morning notification at 1:49 PM AEST (for debugging)
+    cron.schedule('49 13 * * *', async () => {
+          console.log('Running daily leave notification...');
+    console.log('🔍 Scheduler: Starting daily notifications for all channels...');
+    await this.sendDailyNotifications();
+    console.log('🔍 Scheduler: Completed daily notifications for all channels.');
     }, {
       timezone: 'Australia/Sydney'
     });
@@ -34,9 +36,15 @@ class NotificationScheduler {
     try {
       // Get all active teams (channels with the app installed)
       const teams = await Team.getAllActiveTeams();
+      console.log(`🔍 Scheduler: Found ${teams.length} teams`);
+      teams.forEach((team, index) => {
+        console.log(`🔍 Scheduler: Team ${index + 1}: ${team.teamName} (${team.channelId})`);
+      });
       
       for (const team of teams) {
+        console.log(`🔍 Scheduler: Processing team: ${team.teamName} (${team.channelId})`);
         await this.sendDailyNotificationForChannel(team.channelId);
+        console.log(`🔍 Scheduler: Completed processing team: ${team.teamName} (${team.channelId})`);
       }
     } catch (error) {
       console.error('Error sending daily notifications:', error);
@@ -337,22 +345,20 @@ class NotificationScheduler {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
       // Use the same date logic as the main function
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      console.log('📅 Today is:', today.toISOString().split('T')[0]);
+      const today = DateUtils.getCurrentDate().startOf('day');
+      console.log('📅 Today is:', today.format('YYYY-MM-DD'));
       const nextThreeDays = [];
       
       // Get next 3 working days
       for (let i = 1; i <= 7; i++) { // Check up to 7 days ahead
-        const checkDate = new Date(today);
-        checkDate.setDate(checkDate.getDate() + i);
-        if (DateUtils.isWorkingDay(moment(checkDate).tz('Australia/Sydney'))) {
+        const checkDate = today.clone().add(i, 'day');
+        if (DateUtils.isWorkingDay(checkDate)) {
           nextThreeDays.push(checkDate);
           if (nextThreeDays.length >= 3) break;
         }
       }
       
-      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.toISOString().split('T')[0]));
+      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.format('YYYY-MM-DD')));
       
       if (nextThreeDays.length === 0) {
         console.log('⚠️ No working days found in next 7 days');
@@ -362,37 +368,34 @@ class NotificationScheduler {
       // Get leaves for the next 3 working days
       const upcomingLeaves = [];
       for (const date of nextThreeDays) {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = date.clone().startOf('day');
+        const endOfDay = date.clone().endOf('day');
         
-        console.log(`🔍 Checking leaves for ${date.toISOString().split('T')[0]} (${startOfDay} to ${endOfDay})`);
+        console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay.toDate()} to ${endOfDay.toDate()})`);
         
         const leaves = await Leave.find({
           $or: [
             { channelId: channelId }, // Leaves stored in this channel
             { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
           ],
-          startDate: { $lte: endOfDay },
-          endDate: { $gte: startOfDay }
+          startDate: { $lte: endOfDay.toDate() },
+          endDate: { $gte: startOfDay.toDate() }
         }).lean();
         
         // Filter out leaves that are already shown in today's section
         const filteredLeaves = leaves.filter(leave => {
-          const leaveStart = new Date(leave.startDate);
-          const leaveEnd = new Date(leave.endDate);
-          const todayStart = new Date(today);
-          const todayEnd = new Date(today);
-          todayEnd.setHours(23, 59, 59, 999);
+          const leaveStart = moment(leave.startDate).tz('Australia/Sydney');
+          const leaveEnd = moment(leave.endDate).tz('Australia/Sydney');
+          const todayStart = today.clone().startOf('day');
+          const todayEnd = today.clone().endOf('day');
           
           // Only include leaves that don't overlap with today
-          const overlapsWithToday = (leaveStart <= todayEnd && leaveEnd >= todayStart);
-          console.log(`🔍 Leave ${leave.userName} (${leaveStart.toISOString().split('T')[0]} to ${leaveEnd.toISOString().split('T')[0]}) overlaps with today: ${overlapsWithToday}`);
+          const overlapsWithToday = (leaveStart.isSameOrBefore(todayEnd) && leaveEnd.isSameOrAfter(todayStart));
+          console.log(`🔍 Leave ${leave.userName} (${leaveStart.format('YYYY-MM-DD')} to ${leaveEnd.format('YYYY-MM-DD')}) overlaps with today: ${overlapsWithToday}`);
           return !overlapsWithToday;
         });
         
-        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.toISOString().split('T')[0]}`);
+        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
         
         // Always add the date, even if no leaves (to show "No leaves" message)
         upcomingLeaves.push({
