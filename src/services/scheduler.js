@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('0 13 * * *', async () => {
+    // Schedule daily morning notification at 1:06 PM AEST (for debugging)
+    cron.schedule('6 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -129,42 +129,7 @@ class NotificationScheduler {
         });
       }
       
-      if (leaves.length === 0) {
-        // Send a message that no one is on leave today with proper header
-        await this.slackApp.client.chat.postMessage({
-          channel: channelId,
-          blocks: [
-            {
-              type: 'header',
-              text: {
-                type: 'plain_text',
-                text: '🌅 Good Morning! Today\'s Team Availability',
-                emoji: true
-              }
-            },
-            {
-              type: 'context',
-              elements: [
-                {
-                  type: 'mrkdwn',
-                  text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
-                }
-              ]
-            },
-            {
-              type: 'divider'
-            },
-            {
-              type: 'section',
-              text: {
-                type: 'mrkdwn',
-                text: '✅ *No team members are away today! Everyone is available.* 🎉'
-              }
-            }
-          ]
-        });
-        return;
-      }
+      // Remove early return to allow upcoming section to be added even when no current leaves
 
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
