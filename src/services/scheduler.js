@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:40 PM AEST (for debugging)
-    cron.schedule('40 13 * * *', async () => {
+    // Schedule daily morning notification at 1:43 PM AEST (for debugging)
+    cron.schedule('43 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -73,7 +73,7 @@ class NotificationScheduler {
       console.log(`🔍 Scheduler: Searching for leaves with criteria:`, {
         notifiedChannelId: channelId,
         teamMemberIds: teamMemberIds,
-        dateRange: `${today.toISOString().split('T')[0]} to ${tomorrow.toISOString().split('T')[0]}`
+        dateRange: `${today.format('YYYY-MM-DD')} to ${tomorrow.format('YYYY-MM-DD')}`
       });
       
       // Use the exact same logic as the working send-reminder command
@@ -86,14 +86,14 @@ class NotificationScheduler {
         endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
-      console.log(`🔍 Scheduler: Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}`);
+      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
+      console.log(`🔍 Scheduler: Today: ${today.format('YYYY-MM-DD')}, Tomorrow: ${tomorrow.format('YYYY-MM-DD')}`);
       
       // Debug: Check all leaves notified to this channel (without team member filter)
       const allLeavesNotifiedToChannel = await Leave.find({
         'notifiedChannels.channelId': channelId,
-        startDate: { $lte: tomorrow },
-        endDate: { $gte: today }
+        startDate: { $lte: tomorrow.toDate() },
+        endDate: { $gte: today.toDate() }
       });
       
       // Debug: Check all leaves for this channel without any date filters
@@ -145,7 +145,7 @@ class NotificationScheduler {
         return isToday; // Only leaves that start exactly today
       });
       
-      console.log(`🔍 Scheduler: Today's key: ${today.toISOString().split('T')[0]}`);
+      console.log(`🔍 Scheduler: Today's key: ${today.format('YYYY-MM-DD')}`);
       console.log(`🔍 Scheduler: Today's leaves: ${currentLeaves.length}`);
       console.log(`🔍 Scheduler: Current leaves: ${currentLeaves.length}`);
       
