@@ -89,7 +89,6 @@ module.exports = (app) => {
       }
       
       // Ensure current channel is always in the list if user is running command from it
-      const currentChannelInList = userChannels.find(ch => ch.channelId === command.channel_id);
       if (!currentChannelInList) {
         console.log('⚠️ Current channel not in list, adding it as fallback');
         
