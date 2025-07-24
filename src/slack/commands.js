@@ -43,6 +43,23 @@ module.exports = (app) => {
       console.log(`🔍 User channels found: ${userChannels.length}`, 
         userChannels.map(c => `#${c.channelName}`));
       
+      // Debug current channel pre-selection
+      const currentChannelInList = userChannels.find(ch => ch.channelId === command.channel_id);
+      console.log('🔍 Current channel in available list?', !!currentChannelInList);
+      console.log('🔍 Current channel ID:', command.channel_id);
+      console.log('🔍 Available channel IDs:', userChannels.map(c => c.channelId));
+      
+      if (currentChannelInList) {
+        console.log('✅ Current channel found in list:', {
+          channelId: currentChannelInList.channelId,
+          channelName: currentChannelInList.channelName,
+          isPrivate: currentChannelInList.isPrivate
+        });
+      } else {
+        console.log('❌ Current channel NOT found in available channels list!');
+        console.log('🔍 This means the current channel will NOT be pre-selected in the dropdown');
+      }
+      
       // If only one channel found, add a note about progressive discovery
       if (userChannels.length === 1) {
         console.log('💡 Note: Only one channel found. User may need to use the command in other channels first to be added to those teams.');
@@ -897,40 +914,95 @@ module.exports = (app) => {
         };
       });
       
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        blocks: [
-          {
-            type: 'header',
-            text: {
-              type: 'plain_text',
-              text: '📅 My Leave Requests',
-              emoji: true
-            }
-          },
-          {
-            type: 'divider'
-          },
-          ...leaveBlocks,
-          {
-            type: 'context',
-            elements: [
-              {
-                type: 'mrkdwn',
-                text: '💡 Click "Delete" to remove a leave request. Use `/notify-leave` to submit new requests.'
+      try {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: '📅 My Leave Requests', // Add fallback text
+          blocks: [
+            {
+              type: 'header',
+              text: {
+                type: 'plain_text',
+                text: '📅 My Leave Requests',
+                emoji: true
               }
-            ]
+            },
+            {
+              type: 'divider'
+            },
+            ...leaveBlocks,
+            {
+              type: 'context',
+              elements: [
+                {
+                  type: 'mrkdwn',
+                  text: '💡 Click "Delete" to remove a leave request. Use `/notify-leave` to submit new requests.'
+                }
+              ]
+            }
+          ]
+        });
+      } catch (slackError) {
+        if (slackError.code === 'slack_webapi_platform_error' && slackError.data.error === 'not_in_channel') {
+          // Bot is not in the channel, try to send DM instead
+          try {
+            await client.chat.postMessage({
+              channel: command.user_id,
+              text: '📅 My Leave Requests', // Add fallback text
+              blocks: [
+                {
+                  type: 'header',
+                  text: {
+                    type: 'plain_text',
+                    text: '📅 My Leave Requests',
+                    emoji: true
+                  }
+                },
+                {
+                  type: 'divider'
+                },
+                ...leaveBlocks,
+                {
+                  type: 'context',
+                  elements: [
+                    {
+                      type: 'mrkdwn',
+                      text: '💡 Click "Delete" to remove a leave request. Use `/notify-leave` to submit new requests.'
+                    }
+                  ]
+                }
+              ]
+            });
+          } catch (dmError) {
+            console.error('Could not send DM either:', dmError);
+            // Last resort: just send a simple text message
+            await client.chat.postMessage({
+              channel: command.user_id,
+              text: '❌ Sorry, I cannot send messages to this channel. Please try the command in a channel where I am a member.'
+            });
           }
-        ]
-      });
+        } else {
+          throw slackError; // Re-throw other errors
+        }
+      }
     } catch (error) {
       console.error('Error fetching user leaves:', error);
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        text: '❌ Sorry, there was an error fetching your leaves.'
-      });
+      try {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: '❌ Sorry, there was an error fetching your leaves.'
+        });
+      } catch (slackError) {
+        if (slackError.code === 'slack_webapi_platform_error' && slackError.data.error === 'not_in_channel') {
+          // Try DM as fallback
+          await client.chat.postMessage({
+            channel: command.user_id,
+            text: '❌ Sorry, there was an error fetching your leaves. Please try the command in a channel where I am a member.'
+          });
+        }
+      }
     }
   });
 

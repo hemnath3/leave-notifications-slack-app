@@ -116,6 +116,7 @@ class TeamService {
         });
         userChannels = userConversations.channels || [];
         console.log(`🔍 User is in ${userChannels.length} total channels`);
+        console.log(`🔍 User channels:`, userChannels.map(c => `#${c.name} (${c.id}) - Private: ${c.is_private}`));
       } catch (userError) {
         console.log(`⚠️ Could not get user conversations:`, userError.message);
         // Fallback: try to get from team memberships
@@ -138,6 +139,7 @@ class TeamService {
         });
         appChannels = conversationsList.channels || [];
         console.log(`🔍 App has access to ${appChannels.length} channels`);
+        console.log(`🔍 App channels:`, appChannels.map(c => `#${c.name} (${c.id}) - Private: ${c.is_private}`));
       } catch (botError) {
         console.log(`⚠️ Could not get conversations list:`, botError.message);
         // Fallback: use team data
@@ -186,6 +188,10 @@ class TeamService {
       
       console.log(`✅ Final result: ${availableChannels.length} available channels for user ${userId}:`, 
         availableChannels.map(c => `#${c.channelName}${c.isPrivate ? ' (private)' : ''}`));
+      
+      // Debug: Check if current channel is in the result
+      console.log(`🔍 TeamService: Checking if current channel is in result for user ${userId}`);
+      console.log(`🔍 TeamService: Available channel IDs:`, availableChannels.map(c => c.channelId));
       
       return availableChannels;
     } catch (error) {
