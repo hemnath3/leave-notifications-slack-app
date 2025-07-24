@@ -47,6 +47,7 @@ module.exports = (app) => {
       const currentChannelInList = userChannels.find(ch => ch.channelId === command.channel_id);
       console.log('🔍 Current channel in available list?', !!currentChannelInList);
       console.log('🔍 Current channel ID:', command.channel_id);
+      console.log('🔍 Current channel name:', command.channel_name || 'Unknown');
       console.log('🔍 Available channel IDs:', userChannels.map(c => c.channelId));
       
       if (currentChannelInList) {
