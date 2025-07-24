@@ -941,16 +941,16 @@ module.exports = (app) => {
     try {
       console.log('🔍 Manual reminder requested for channel:', command.channel_id);
       
-      // Add debugging for send-reminder
-      console.log('🔍 Send-reminder: Today:', today.toISOString().split('T')[0]);
-      console.log('🔍 Send-reminder: Tomorrow:', tomorrow.toISOString().split('T')[0]);
-      
       // Get today's leaves for this specific channel
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // Add debugging for send-reminder
+      console.log('🔍 Send-reminder: Today:', today.toISOString().split('T')[0]);
+      console.log('🔍 Send-reminder: Tomorrow:', tomorrow.toISOString().split('T')[0]);
       
       const leaves = await Leave.find({
         $or: [
