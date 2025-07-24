@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('40 12 * * *', async () => {
+    cron.schedule('42 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -335,7 +335,7 @@ class NotificationScheduler {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
       const today = DateUtils.getCurrentDate().startOf('day');
-      console.log('📅 Today is:', today.format('YYYY-MM-DD'));
+      console.log('📅 Today is:', today.toISOString().split('T')[0]);
       const nextThreeDays = [];
       
       // Get next 3 working days
