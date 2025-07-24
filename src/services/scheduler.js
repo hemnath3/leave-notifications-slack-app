@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 11:25 AM AEST (for debugging)
-    cron.schedule('25 11 * * *', async () => {
+    // Schedule daily morning notification at 11:30 AM AEST (for debugging)
+    cron.schedule('30 11 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -97,6 +97,18 @@ class NotificationScheduler {
         'notifiedChannels.channelId': channelId,
         startDate: { $lte: tomorrow.toDate() },
         endDate: { $gte: today.toDate() }
+      });
+      
+      // Debug: Check all leaves for this channel without any date filters
+      const allLeavesForChannel = await Leave.find({
+        $or: [
+          { channelId: channelId },
+          { 'notifiedChannels.channelId': channelId }
+        ]
+      });
+      console.log(`🔍 Scheduler: All leaves for channel ${channelId} (no date filter): ${allLeavesForChannel.length}`);
+      allLeavesForChannel.forEach(leave => {
+        console.log(`🔍 Scheduler: All leave for channel - ${leave.userName} (${leave.startDate} to ${leave.endDate}) - Source: ${leave.channelName}`);
       });
       console.log(`🔍 Scheduler: All leaves notified to channel ${channelId} (without team filter): ${allLeavesNotifiedToChannel.length}`);
       allLeavesNotifiedToChannel.forEach(leave => {
