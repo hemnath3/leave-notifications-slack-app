@@ -80,6 +80,8 @@ module.exports = (app) => {
         startTime,
         endTime,
         reason,
+        reasonLength: reason ? reason.length : 0,
+        reasonTrimmed: reason ? reason.trim() : '',
         selectedChannels: selectedChannels.map(c => c.value)
       });
       
@@ -158,7 +160,16 @@ module.exports = (app) => {
       }
       
       // Validate: Reason is required for "Other" leave type
+      console.log('🔍 Reason validation check:', {
+        leaveType,
+        reason,
+        reasonTrimmed: reason ? reason.trim() : '',
+        isEmpty: !reason || reason.trim() === '',
+        isOtherType: leaveType === 'other'
+      });
+      
       if (leaveType === 'other' && (!reason || reason.trim() === '')) {
+        console.log('❌ Reason validation failed for Other leave type');
         await client.chat.postEphemeral({
           channel: metadata.channelId,
           user: metadata.userId,

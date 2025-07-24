@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 10:20 AM AEST (for debugging)
-    cron.schedule('20 10 * * *', async () => {
+    // Schedule daily morning notification at 10:27 AM AEST (for debugging)
+    cron.schedule('27 10 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -59,8 +59,15 @@ class NotificationScheduler {
       const teamMemberIds = team.members.map(m => m.userId);
       
       console.log(`🔍 Scheduler: Team ${team.teamName} (${channelId}) has ${team.members.length} members:`, team.members.map(m => m.userName));
+      console.log(`🔍 Scheduler: Team member IDs:`, teamMemberIds);
       
       // Get leaves for today that are notified to this channel (what user chose to notify)
+      console.log(`🔍 Scheduler: Searching for leaves with criteria:`, {
+        notifiedChannelId: channelId,
+        teamMemberIds: teamMemberIds,
+        dateRange: `${today.format('YYYY-MM-DD')} to ${tomorrow.format('YYYY-MM-DD')}`
+      });
+      
       const leaves = await Leave.find({
         'notifiedChannels.channelId': channelId, // Only leaves notified to this channel
         userId: { $in: teamMemberIds },
@@ -70,6 +77,17 @@ class NotificationScheduler {
       
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
       console.log(`🔍 Scheduler: Today: ${today.format()}, Tomorrow: ${tomorrow.format()}`);
+      
+      // Debug: Check all leaves notified to this channel (without team member filter)
+      const allLeavesNotifiedToChannel = await Leave.find({
+        'notifiedChannels.channelId': channelId,
+        startDate: { $lte: tomorrow.toDate() },
+        endDate: { $gte: today.toDate() }
+      });
+      console.log(`🔍 Scheduler: All leaves notified to channel ${channelId} (without team filter): ${allLeavesNotifiedToChannel.length}`);
+      allLeavesNotifiedToChannel.forEach(leave => {
+        console.log(`🔍 Scheduler: Leave notified to channel - ${leave.userName} (${leave.userId}) - ${leave.startDate} to ${leave.endDate}`);
+      });
       
       if (leaves.length === 0) {
         // Check if there are any leaves for this channel at all (for debugging)
