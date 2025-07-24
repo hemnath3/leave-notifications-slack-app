@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('25 12 * * *', async () => {
+    cron.schedule('30 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -69,7 +69,7 @@ class NotificationScheduler {
       console.log(`🔍 Scheduler: Searching for leaves with criteria:`, {
         notifiedChannelId: channelId,
         teamMemberIds: teamMemberIds,
-        dateRange: `${today.format('YYYY-MM-DD')} to ${tomorrow.format('YYYY-MM-DD')}`
+        dateRange: `${today.toISOString().split('T')[0]} to ${tomorrow.toISOString().split('T')[0]}`
       });
       
       // Use the same logic as the working send-reminder command
