@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:28 PM AEST (for debugging)
-    cron.schedule('28 13 * * *', async () => {
+    // Schedule daily morning notification at 1:32 PM AEST (for debugging)
+    cron.schedule('32 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -261,52 +261,31 @@ class NotificationScheduler {
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
       
-      // Add a simple upcoming section for Channel C if no current leaves
-      if (currentLeaves.length === 0) {
-        console.log('🔄 Adding simple upcoming section for channel with no current leaves');
-        try {
-          // Simple upcoming section - just check for tomorrow's leaves
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          tomorrow.setHours(0, 0, 0, 0);
-          
-          const tomorrowLeaves = await Leave.find({
-            $or: [
-              { channelId: channelId },
-              { 'notifiedChannels.channelId': channelId }
-            ],
-            startDate: { $gte: tomorrow },
-            endDate: { $gte: tomorrow }
-          }).limit(5);
-          
-          if (tomorrowLeaves.length > 0) {
-            console.log('✅ Found upcoming leaves, adding section');
-            blocks.push({
-              type: 'divider'
-            });
-            blocks.push({
-              type: 'header',
-              text: {
-                type: 'plain_text',
-                text: '📅 Upcoming Leaves',
-                emoji: true
-              }
-            });
-            
-            for (const leave of tomorrowLeaves) {
-              const emoji = this.getLeaveTypeEmoji(leave.leaveType);
-              blocks.push({
-                type: 'section',
-                text: {
-                  type: 'mrkdwn',
-                  text: `• ${emoji} *${leave.userName}* - ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)} (Tomorrow)`
-                }
-              });
-            }
-          }
-        } catch (error) {
-          console.error('❌ Error in simple upcoming section:', error);
+      // Always call upcoming section and let it handle the logic
+      console.log('🔄 About to add upcoming leaves section...');
+      console.log('🔄 Current leaves count:', currentLeaves.length);
+      console.log('🔄 Blocks before upcoming section:', blocks.length);
+      
+      try {
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Upcoming section timeout')), 10000); // 10 second timeout
+        });
+        
+        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
+        const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
+        
+        console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
+        if (hasUpcomingLeaves) {
+          console.log('✅ Upcoming leaves section added');
+        } else {
+          console.log('ℹ️ No upcoming leaves found, skipping section');
         }
+      } catch (error) {
+        console.error('❌ Error in upcoming section:', error);
+        console.error('❌ Error details:', error.message);
+        console.error('❌ Error stack:', error.stack);
+        // Continue without upcoming section if there's an error
       }
       
       console.log('🔄 Blocks after upcoming section:', blocks.length);
