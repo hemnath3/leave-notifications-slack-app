@@ -623,7 +623,7 @@ module.exports = (app) => {
     
     try {
       const args = command.text.trim().split(/\s+/);
-      let targetDate = DateUtils.getCurrentDate().toDate();
+      let targetDate = DateUtils.getCurrentDate();
       let targetUser = null;
       
       // Parse arguments
@@ -634,10 +634,10 @@ module.exports = (app) => {
         if (arg.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
           // DD/MM/YYYY format
           const [day, month, year] = arg.split('/');
-          targetDate = new Date(year, month - 1, day);
+          targetDate = moment.tz(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`, 'Australia/Sydney');
         } else if (arg.match(/^\d{4}-\d{2}-\d{2}$/)) {
           // YYYY-MM-DD format
-          targetDate = new Date(arg);
+          targetDate = moment.tz(arg, 'Australia/Sydney');
         } else if (arg && !targetUser) {
           // Assume it's a username
           targetUser = arg.toLowerCase();
@@ -665,7 +665,7 @@ module.exports = (app) => {
       }
       
       // Filter by date using timezone-aware comparison
-      const targetDateStr = moment(targetDate).tz('Australia/Sydney').format('YYYY-MM-DD');
+      const targetDateStr = targetDate.format('YYYY-MM-DD');
       leaves = leaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const endDate = moment(leave.endDate).tz('Australia/Sydney');
@@ -690,8 +690,7 @@ module.exports = (app) => {
         });
       } else {
         // If a specific date was provided, check if it's within 30 days in the past
-        const targetDateObj = new Date(targetDate);
-        if (!DateUtils.isWithinThirtyDaysPast(targetDateObj)) {
+        if (!DateUtils.isWithinThirtyDaysPast(targetDate)) {
           await client.chat.postEphemeral({
             channel: command.channel_id,
             user: command.user_id,
@@ -713,7 +712,7 @@ module.exports = (app) => {
       leaves.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
       
       if (leaves.length === 0) {
-        const dateStr = targetDate.toLocaleDateString();
+        const dateStr = DateUtils.formatDateForDisplay(targetDate);
         const userStr = targetUser ? ` for ${targetUser}` : '';
         await client.chat.postEphemeral({
           channel: command.channel_id,
@@ -761,7 +760,7 @@ module.exports = (app) => {
         };
       });
       
-      const dateStr = targetDate.toLocaleDateString();
+      const dateStr = DateUtils.formatDateForDisplay(targetDate);
       const userStr = targetUser ? ` for ${targetUser}` : '';
       const title = `📅 Leaves for ${dateStr}${userStr}`;
       
