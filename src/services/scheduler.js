@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:49 PM AEST (for debugging)
-    cron.schedule('49 13 * * *', async () => {
+    // Schedule daily morning notification at 1:52 PM AEST (for debugging)
+    cron.schedule('52 13 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -85,6 +85,7 @@ class NotificationScheduler {
       });
       
       // Use the exact same logic as the working send-reminder command
+      console.log(`🔍 Scheduler: About to query database for channel ${channelId}...`);
       const leaves = await Leave.find({
         $or: [
           { channelId: channelId }, // Leaves stored in this channel
@@ -93,24 +94,29 @@ class NotificationScheduler {
         startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
         endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
+      console.log(`🔍 Scheduler: Database query completed for channel ${channelId}`);
       
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
       console.log(`🔍 Scheduler: Today: ${today.format('YYYY-MM-DD')}, Tomorrow: ${tomorrow.format('YYYY-MM-DD')}`);
       
       // Debug: Check all leaves notified to this channel (without team member filter)
+      console.log(`🔍 Scheduler: About to query allLeavesNotifiedToChannel for ${channelId}...`);
       const allLeavesNotifiedToChannel = await Leave.find({
         'notifiedChannels.channelId': channelId,
         startDate: { $lte: tomorrow.toDate() },
         endDate: { $gte: today.toDate() }
       });
+      console.log(`🔍 Scheduler: allLeavesNotifiedToChannel query completed for ${channelId}`);
       
       // Debug: Check all leaves for this channel without any date filters
+      console.log(`🔍 Scheduler: About to query allLeavesForChannel for ${channelId}...`);
       const allLeavesForChannel = await Leave.find({
         $or: [
           { channelId: channelId },
           { 'notifiedChannels.channelId': channelId }
         ]
       });
+      console.log(`🔍 Scheduler: allLeavesForChannel query completed for ${channelId}`);
       console.log(`🔍 Scheduler: All leaves for channel ${channelId} (no date filter): ${allLeavesForChannel.length}`);
       allLeavesForChannel.forEach(leave => {
         console.log(`🔍 Scheduler: All leave for channel - ${leave.userName} (${leave.startDate} to ${leave.endDate}) - Source: ${leave.channelName}`);
