@@ -949,7 +949,10 @@ module.exports = (app) => {
       tomorrow.setDate(tomorrow.getDate() + 1);
       
       const leaves = await Leave.find({
-        channelId: command.channel_id,
+        $or: [
+          { channelId: command.channel_id }, // Leaves stored in this channel
+          { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
+        ],
         startDate: { $lte: tomorrow },
         endDate: { $gte: today }
       }).sort({ startDate: 1 });
