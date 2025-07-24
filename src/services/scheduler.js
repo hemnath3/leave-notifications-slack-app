@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:58 PM AEST (for debugging)
-    cron.schedule('58 13 * * *', async () => {
+    // Schedule daily morning notification at 2:02 PM AEST (for testing)
+    cron.schedule('2 14 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -307,20 +307,9 @@ class NotificationScheduler {
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
       
-      // Always call upcoming section and let it handle the logic
-      console.log('🔄 About to add upcoming leaves section...');
-      console.log('🔄 Current leaves count:', currentLeaves.length);
-      console.log('🔄 Blocks before upcoming section:', blocks.length);
-      
+      // Simplified upcoming section logic
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Upcoming section timeout')), 10000); // 10 second timeout
-        });
-        
-        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
-        const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
-        
+        const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
         console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
         if (hasUpcomingLeaves) {
           console.log('✅ Upcoming leaves section added');
@@ -329,9 +318,27 @@ class NotificationScheduler {
         }
       } catch (error) {
         console.error('❌ Error in upcoming section:', error);
-        console.error('❌ Error details:', error.message);
-        console.error('❌ Error stack:', error.stack);
         // Continue without upcoming section if there's an error
+      }
+      
+      // Ensure we have at least a header block if no other content
+      if (blocks.length === 0) {
+        console.log('⚠️ No blocks found, adding default header for channel:', channelId);
+        blocks.push({
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '🌅 Good Morning! Today\'s Team Availability',
+            emoji: true
+          }
+        });
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: '📅 No team members are away today! Everyone is available. 🎉'
+          }
+        });
       }
       
       console.log('🔄 Blocks after upcoming section:', blocks.length);
