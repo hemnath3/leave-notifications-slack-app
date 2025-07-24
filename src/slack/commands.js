@@ -941,6 +941,10 @@ module.exports = (app) => {
     try {
       console.log('🔍 Manual reminder requested for channel:', command.channel_id);
       
+      // Add debugging for send-reminder
+      console.log('🔍 Send-reminder: Today:', today.toISOString().split('T')[0]);
+      console.log('🔍 Send-reminder: Tomorrow:', tomorrow.toISOString().split('T')[0]);
+      
       // Get today's leaves for this specific channel
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -953,15 +957,20 @@ module.exports = (app) => {
           { channelId: command.channel_id }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow },
-        endDate: { $gte: today }
+        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      // Only show leaves that actually start today (not leaves that start tomorrow but overlap with today)
+      console.log('🔍 Send-reminder: Found', leaves.length, 'leaves for channel', command.channel_id);
+      leaves.forEach(leave => {
+        console.log('🔍 Send-reminder: Leave -', leave.userName, '(', leave.startDate.toISOString().split('T')[0], 'to', leave.endDate.toISOString().split('T')[0], ')');
+      });
+      
+      // Show all leaves that overlap with today (not just those that start exactly today)
       const currentLeaves = leaves.filter(leave => {
         const startDate = new Date(leave.startDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
+        const endDate = new Date(leave.endDate);
+        return startDate <= tomorrow && endDate >= today; // Include all overlapping leaves
       });
       
       // Create the base message structure
