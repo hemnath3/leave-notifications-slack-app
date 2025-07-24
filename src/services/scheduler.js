@@ -260,13 +260,55 @@ class NotificationScheduler {
       console.log('🔄 About to add upcoming leaves section...');
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
-      const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
-      console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
-      if (hasUpcomingLeaves) {
-        console.log('✅ Upcoming leaves section added');
-      } else {
-        console.log('ℹ️ No upcoming leaves found, skipping section');
+      
+      // Add a simple upcoming section for Channel C if no current leaves
+      if (currentLeaves.length === 0) {
+        console.log('🔄 Adding simple upcoming section for channel with no current leaves');
+        try {
+          // Simple upcoming section - just check for tomorrow's leaves
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+          
+          const tomorrowLeaves = await Leave.find({
+            $or: [
+              { channelId: channelId },
+              { 'notifiedChannels.channelId': channelId }
+            ],
+            startDate: { $gte: tomorrow },
+            endDate: { $gte: tomorrow }
+          }).limit(5);
+          
+          if (tomorrowLeaves.length > 0) {
+            console.log('✅ Found upcoming leaves, adding section');
+            blocks.push({
+              type: 'divider'
+            });
+            blocks.push({
+              type: 'header',
+              text: {
+                type: 'plain_text',
+                text: '📅 Upcoming Leaves',
+                emoji: true
+              }
+            });
+            
+            for (const leave of tomorrowLeaves) {
+              const emoji = this.getLeaveTypeEmoji(leave.leaveType);
+              blocks.push({
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `• ${emoji} *${leave.userName}* - ${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)} (Tomorrow)`
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error in simple upcoming section:', error);
+        }
       }
+      
       console.log('🔄 Blocks after upcoming section:', blocks.length);
       
       try {
