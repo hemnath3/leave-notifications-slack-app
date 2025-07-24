@@ -101,11 +101,9 @@ class TeamService {
   // Get all channels where user is a member and app is installed
   static async getUserChannelsWithApp(userId, slackClient) {
     try {
-      // Get all channels where the app is installed (active teams)
-      const allTeams = await this.getAllActiveTeams();
-      console.log(`🔍 Total teams with app installed: ${allTeams.length}`);
+      console.log(`🔍 Getting channels for user ${userId} where app is installed and bot has access`);
       
-      // Step 1: Get all channels user is a member of (using user token if available)
+      // Step 1: Get all channels user is a member of (public + private)
       let userChannels = [];
       try {
         const userConversations = await slackClient.users.conversations({
@@ -116,22 +114,12 @@ class TeamService {
         });
         userChannels = userConversations.channels || [];
         console.log(`🔍 User is in ${userChannels.length} total channels`);
-        console.log(`🔍 User channels:`, userChannels.map(c => `#${c.name} (${c.id}) - Private: ${c.is_private}`));
       } catch (userError) {
         console.log(`⚠️ Could not get user conversations:`, userError.message);
-        // Fallback: try to get from team memberships, but be more restrictive
-        console.log(`⚠️ Using fallback logic - this may not be accurate`);
-        userChannels = allTeams
-          .filter(team => team.members.some(member => member.userId === userId))
-          .map(team => ({
-            id: team.channelId,
-            name: team.channelName,
-            is_private: false // We don't know, assume public
-          }));
-        console.log(`⚠️ Fallback user channels:`, userChannels.map(c => `#${c.name} (${c.id})`));
+        return [];
       }
       
-      // Step 2: Get all channels where app is installed (using bot token)
+      // Step 2: Get all channels where app is installed
       let appChannels = [];
       try {
         const conversationsList = await slackClient.conversations.list({
@@ -141,44 +129,31 @@ class TeamService {
         });
         appChannels = conversationsList.channels || [];
         console.log(`🔍 App has access to ${appChannels.length} channels`);
-        console.log(`🔍 App channels:`, appChannels.map(c => `#${c.name} (${c.id}) - Private: ${c.is_private}`));
       } catch (botError) {
         console.log(`⚠️ Could not get conversations list:`, botError.message);
-        // Fallback: use team data
-        appChannels = allTeams.map(team => ({
-          id: team.channelId,
-          name: team.channelName,
-          is_private: false
-        }));
+        return [];
       }
       
-      // Step 3: Intersect the two results and verify bot membership
+      // Step 3: Intersect and verify bot access
       const availableChannels = [];
-      const userChannelIds = new Set(userChannels.map(c => c.id));
       const appChannelIds = new Set(appChannels.map(c => c.id));
       
       for (const userChannel of userChannels) {
-        console.log(`🔍 Processing user channel: #${userChannel.name} (${userChannel.id})`);
-        console.log(`🔍 Is this channel in app channels? ${appChannelIds.has(userChannel.id)}`);
-        
+        // Check if this channel is in both user's channels AND app's channels
         if (appChannelIds.has(userChannel.id)) {
-          // This channel is both user-accessible and app-installed
-          const appChannel = appChannels.find(c => c.id === userChannel.id);
-          
           // Skip archived or closed channels
           if (userChannel.is_archived || userChannel.is_member === false) {
-            console.log(`⚠️ Skipping channel #${userChannel.name} (${userChannel.id}): archived=${userChannel.is_archived}, member=${userChannel.is_member}`);
+            console.log(`⚠️ Skipping archived/closed channel: #${userChannel.name} (${userChannel.id})`);
             continue;
           }
           
-          // Additional check: Verify bot can actually access this channel
+          // Pre-flight check: Verify bot can actually post to this channel
           try {
-            // This will fail if bot is not a member
             await slackClient.conversations.info({
               channel: userChannel.id
             });
             
-            console.log(`🔍 Found available channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
+            console.log(`✅ Found valid channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
             
             availableChannels.push({
               channelId: userChannel.id,
@@ -186,20 +161,16 @@ class TeamService {
               isPrivate: userChannel.is_private || false
             });
           } catch (error) {
-            console.log(`⚠️ Bot cannot access channel #${userChannel.name} (${userChannel.id}): ${error.data?.error || error.message}`);
+            console.log(`❌ Bot cannot access channel #${userChannel.name} (${userChannel.id}): ${error.data?.error || error.message}`);
             // Skip this channel - bot is not a member
           }
         } else {
-          console.log(`⚠️ Channel #${userChannel.name} (${userChannel.id}) not found in app channels list`);
+          console.log(`⚠️ Channel #${userChannel.name} (${userChannel.id}) not in app's channel list`);
         }
       }
       
       console.log(`✅ Final result: ${availableChannels.length} available channels for user ${userId}:`, 
         availableChannels.map(c => `#${c.channelName}${c.isPrivate ? ' (private)' : ''}`));
-      
-      // Debug: Check if current channel is in the result
-      console.log(`🔍 TeamService: Checking if current channel is in result for user ${userId}`);
-      console.log(`🔍 TeamService: Available channel IDs:`, availableChannels.map(c => c.channelId));
       
       return availableChannels;
     } catch (error) {
