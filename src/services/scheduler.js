@@ -337,9 +337,14 @@ class NotificationScheduler {
       console.log('🔄 Blocks after upcoming section:', blocks.length);
       
       try {
-        console.log('📤 Sending message to channel:', channelId);
+        console.log('📤 About to send message to channel:', channelId);
         console.log('📤 Message blocks count:', blocks.length);
+        if (blocks.length === 0) {
+          console.log('⚠️ No blocks to send for channel:', channelId);
+          return;
+        }
         console.log('📤 Message blocks:', JSON.stringify(blocks, null, 2));
+        console.log('📤 Slack API call starting for channel:', channelId);
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
           text: 'Daily Team Availability Update', // Add fallback text
