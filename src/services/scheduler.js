@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('42 12 * * *', async () => {
+    cron.schedule('47 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -334,20 +334,23 @@ class NotificationScheduler {
   async addUpcomingLeavesSection(blocks, channelId) {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
-      const today = DateUtils.getCurrentDate().startOf('day');
+      // Use the same date logic as the main function
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       console.log('📅 Today is:', today.toISOString().split('T')[0]);
       const nextThreeDays = [];
       
       // Get next 3 working days
       for (let i = 1; i <= 7; i++) { // Check up to 7 days ahead
-        const checkDate = today.clone().add(i, 'days');
-        if (DateUtils.isWorkingDay(checkDate.toDate())) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() + i);
+        if (DateUtils.isWorkingDay(checkDate)) {
           nextThreeDays.push(checkDate);
           if (nextThreeDays.length >= 3) break;
         }
       }
       
-      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.format('YYYY-MM-DD')));
+      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.toISOString().split('T')[0]));
       
       if (nextThreeDays.length === 0) {
         console.log('⚠️ No working days found in next 7 days');
@@ -357,10 +360,12 @@ class NotificationScheduler {
       // Get leaves for the next 3 working days
       const upcomingLeaves = [];
       for (const date of nextThreeDays) {
-        const startOfDay = date.startOf('day').toDate();
-        const endOfDay = date.endOf('day').toDate();
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
         
-        console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay} to ${endOfDay})`);
+        console.log(`🔍 Checking leaves for ${date.toISOString().split('T')[0]} (${startOfDay} to ${endOfDay})`);
         
         const leaves = await Leave.find({
           $or: [
@@ -375,14 +380,15 @@ class NotificationScheduler {
         const filteredLeaves = leaves.filter(leave => {
           const leaveStart = new Date(leave.startDate);
           const leaveEnd = new Date(leave.endDate);
-          const todayStart = today.toDate();
-          const todayEnd = today.endOf('day').toDate();
+          const todayStart = new Date(today);
+          const todayEnd = new Date(today);
+          todayEnd.setHours(23, 59, 59, 999);
           
           // Only include leaves that don't overlap with today
           return !(leaveStart <= todayEnd && leaveEnd >= todayStart);
         });
         
-        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
+        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.toISOString().split('T')[0]}`);
         
         // Always add the date, even if no leaves (to show "No leaves" message)
         upcomingLeaves.push({
