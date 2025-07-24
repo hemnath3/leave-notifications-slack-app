@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 3:08 PM AEST (for testing)
-    cron.schedule('8 15 * * *', async () => {
+    // Schedule daily morning notification at 3:10 PM AEST (for testing)
+    cron.schedule('10 15 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
