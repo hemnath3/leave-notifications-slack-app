@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('21 12 * * *', async () => {
+    cron.schedule('25 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -45,8 +45,12 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
-      const today = DateUtils.getCurrentDate().startOf('day');
-      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
+      // Use the same date creation logic as send-reminder
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
       
       // Get team info
       const team = await Team.getTeamByChannel(channelId);
@@ -74,18 +78,18 @@ class NotificationScheduler {
           { channelId: channelId }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
-        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
+        startDate: { $lte: tomorrow }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
-      console.log(`🔍 Scheduler: Today: ${today.format()}, Tomorrow: ${tomorrow.format()}`);
+      console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
+      console.log(`🔍 Scheduler: Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}`);
       
       // Debug: Check all leaves notified to this channel (without team member filter)
       const allLeavesNotifiedToChannel = await Leave.find({
         'notifiedChannels.channelId': channelId,
-        startDate: { $lte: tomorrow.toDate() },
-        endDate: { $gte: today.toDate() }
+        startDate: { $lte: tomorrow },
+        endDate: { $gte: today }
       });
       
       // Debug: Check all leaves for this channel without any date filters
@@ -166,7 +170,7 @@ class NotificationScheduler {
       const currentLeaves = leaves.filter(leave => {
         const startDate = new Date(leave.startDate);
         const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
+        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
       });
       
       console.log(`🔍 Scheduler: Today's key: ${today.format('YYYY-MM-DD')}`);
