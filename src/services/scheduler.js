@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:13 PM AEST (for debugging)
-    cron.schedule('13 13 * * *', async () => {
+    // Schedule daily morning notification at 1:16 PM AEST (for debugging)
+    cron.schedule('16 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -258,18 +258,25 @@ class NotificationScheduler {
       
       // Always call upcoming section and let it handle the logic
       console.log('🔄 About to add upcoming leaves section...');
+      console.log('🔄 Current leaves count:', currentLeaves.length);
+      console.log('🔄 Blocks before upcoming section:', blocks.length);
       const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
+      console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
       if (hasUpcomingLeaves) {
         console.log('✅ Upcoming leaves section added');
       } else {
         console.log('ℹ️ No upcoming leaves found, skipping section');
       }
+      console.log('🔄 Blocks after upcoming section:', blocks.length);
       
       try {
+        console.log('📤 Sending message to channel:', channelId);
+        console.log('📤 Message blocks count:', blocks.length);
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
           blocks: blocks
         });
+        console.log('✅ Message sent successfully to channel:', channelId);
       } catch (error) {
         if (error.code === 'slack_webapi_platform_error' && error.data.error === 'not_in_channel') {
           console.log(`⚠️ App is not a member of channel ${channelId}. Skipping daily notification.`);
