@@ -399,23 +399,21 @@ class NotificationScheduler {
   async addUpcomingLeavesSection(blocks, channelId, currentLeavesCount = 0) {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
-      // Use the same date logic as the main function
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      console.log('📅 Today is:', today.toISOString().split('T')[0]);
+      // Use the exact same logic as send-reminder
+      const today = DateUtils.getCurrentDate().startOf('day');
+      console.log('📅 Today is:', today.format('YYYY-MM-DD'));
       const nextThreeDays = [];
       
       // Get next 3 working days
       for (let i = 1; i <= 7; i++) { // Check up to 7 days ahead
-        const checkDate = new Date(today);
-        checkDate.setDate(checkDate.getDate() + i);
-        if (DateUtils.isWorkingDay(moment(checkDate).tz('Australia/Sydney'))) {
+        const checkDate = today.clone().add(i, 'days');
+        if (DateUtils.isWorkingDay(checkDate.toDate())) {
           nextThreeDays.push(checkDate);
           if (nextThreeDays.length >= 3) break;
         }
       }
       
-      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.toISOString().split('T')[0]));
+      console.log('📅 Next 3 working days:', nextThreeDays.map(d => d.format('YYYY-MM-DD')));
       
       if (nextThreeDays.length === 0) {
         console.log('⚠️ No working days found in next 7 days');
@@ -425,14 +423,12 @@ class NotificationScheduler {
       // Get leaves for the next 3 working days
       const upcomingLeaves = [];
       for (const date of nextThreeDays) {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
+        const startOfDay = date.startOf('day').toDate();
+        const endOfDay = date.endOf('day').toDate();
         
-        console.log(`🔍 Checking leaves for ${date.toISOString().split('T')[0]} (${startOfDay} to ${endOfDay})`);
+        console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay} to ${endOfDay})`);
         
-        console.log(`🔍 About to query leaves for ${date.toISOString().split('T')[0]} with date range: ${startOfDay} to ${endOfDay}`);
+        console.log(`🔍 About to query leaves for ${date.format('YYYY-MM-DD')} with date range: ${startOfDay} to ${endOfDay}`);
         const leaves = await Leave.find({
           $or: [
             { channelId: channelId }, // Leaves stored in this channel
@@ -441,22 +437,20 @@ class NotificationScheduler {
           startDate: { $lte: endOfDay.toDate() },
           endDate: { $gte: startOfDay.toDate() }
         }).lean();
-        console.log(`🔍 Query result for ${date.toISOString().split('T')[0]}: ${leaves.length} leaves found`);
+        console.log(`🔍 Query result for ${date.format('YYYY-MM-DD')}: ${leaves.length} leaves found`);
         
         // Filter out leaves that are already shown in today's section
         const filteredLeaves = leaves.filter(leave => {
-          const leaveStart = moment(leave.startDate).tz('Australia/Sydney');
-          const leaveEnd = moment(leave.endDate).tz('Australia/Sydney');
-          const todayStart = today.clone().startOf('day');
-          const todayEnd = today.clone().endOf('day');
+          const leaveStart = new Date(leave.startDate);
+          const leaveEnd = new Date(leave.endDate);
+          const todayStart = today.toDate();
+          const todayEnd = today.endOf('day').toDate();
           
           // Only include leaves that don't overlap with today
-          const overlapsWithToday = (leaveStart.isSameOrBefore(todayEnd) && leaveEnd.isSameOrAfter(todayStart));
-          console.log(`🔍 Leave ${leave.userName} (${leaveStart.toISOString().split('T')[0]} to ${leaveEnd.toISOString().split('T')[0]}) overlaps with today: ${overlapsWithToday}`);
-          return !overlapsWithToday;
+          return !(leaveStart <= todayEnd && leaveEnd >= todayStart);
         });
         
-        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.toISOString().split('T')[0]}`);
+        console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
         
         // Always add the date, even if no leaves (to show "No leaves" message)
         upcomingLeaves.push({
