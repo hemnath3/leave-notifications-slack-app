@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 2:30 PM AEST (for testing)
-    cron.schedule('30 14 * * *', async () => {
+    // Schedule daily morning notification at 2:40 PM AEST (for testing)
+    cron.schedule('40 14 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -305,9 +305,20 @@ class NotificationScheduler {
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
       
-      // Simplified upcoming section logic
+      // Always call upcoming section and let it handle the logic
+      console.log('🔄 About to add upcoming leaves section...');
+      console.log('🔄 Current leaves count:', currentLeaves.length);
+      console.log('🔄 Blocks before upcoming section:', blocks.length);
+      
       try {
-        const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Upcoming section timeout')), 10000); // 10 second timeout
+        });
+        
+        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
+        const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
+        
         console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
         if (hasUpcomingLeaves) {
           console.log('✅ Upcoming leaves section added');
@@ -316,6 +327,8 @@ class NotificationScheduler {
         }
       } catch (error) {
         console.error('❌ Error in upcoming section:', error);
+        console.error('❌ Error details:', error.message);
+        console.error('❌ Error stack:', error.stack);
         // Continue without upcoming section if there's an error
       }
       
