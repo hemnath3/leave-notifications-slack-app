@@ -1183,7 +1183,10 @@ module.exports = (app) => {
         console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay} to ${endOfDay})`);
         
         const leaves = await Leave.find({
-          channelId: channelId,
+          $or: [
+            { channelId: channelId }, // Leaves stored in this channel
+            { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
+          ],
           startDate: { $lte: endOfDay },
           endDate: { $gte: startOfDay }
         }).lean();
