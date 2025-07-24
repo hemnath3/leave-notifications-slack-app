@@ -296,7 +296,8 @@ module.exports = (app) => {
                   emoji: true
                 },
                 max_length: 500
-              }
+              },
+              optional: true
             },
             {
               type: 'context',

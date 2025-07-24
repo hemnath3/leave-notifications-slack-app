@@ -159,7 +159,7 @@ module.exports = (app) => {
         return;
       }
       
-      // Validate: Reason is required for "Other" leave type
+      // Reason is now optional for all leave types
       console.log('🔍 Reason validation check:', {
         leaveType,
         reason,
@@ -168,15 +168,7 @@ module.exports = (app) => {
         isOtherType: leaveType === 'other'
       });
       
-      if (leaveType === 'other' && (!reason || reason.trim() === '')) {
-        console.log('❌ Reason validation failed for Other leave type');
-        await client.chat.postEphemeral({
-          channel: metadata.channelId,
-          user: metadata.userId,
-          text: '❌ Error: Reason is required for "Other" leave type. Please provide a reason.'
-        });
-        return;
-      }
+      // No validation needed - reason is optional for all leave types
       
       // Validate: At least one channel must be selected
       if (selectedChannels.length === 0) {
