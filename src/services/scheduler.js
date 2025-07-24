@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 10:55 AM AEST (for debugging)
-    cron.schedule('55 10 * * *', async () => {
+    // Schedule daily morning notification at 11:00 AM AEST (for debugging)
+    cron.schedule('0 11 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -87,6 +87,7 @@ class NotificationScheduler {
       console.log(`🔍 Scheduler: All leaves notified to channel ${channelId} (without team filter): ${allLeavesNotifiedToChannel.length}`);
       allLeavesNotifiedToChannel.forEach(leave => {
         console.log(`🔍 Scheduler: Leave notified to channel - ${leave.userName} (${leave.userId}) - ${leave.startDate} to ${leave.endDate}`);
+        console.log(`🔍 Scheduler: Leave notifiedChannels:`, leave.notifiedChannels);
       });
       
       if (leaves.length === 0) {
