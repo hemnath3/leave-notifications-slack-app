@@ -357,7 +357,9 @@ class NotificationScheduler {
           todayEnd.setHours(23, 59, 59, 999);
           
           // Only include leaves that don't overlap with today
-          return !(leaveStart <= todayEnd && leaveEnd >= todayStart);
+          const overlapsWithToday = (leaveStart <= todayEnd && leaveEnd >= todayStart);
+          console.log(`🔍 Leave ${leave.userName} (${leaveStart.toISOString().split('T')[0]} to ${leaveEnd.toISOString().split('T')[0]}) overlaps with today: ${overlapsWithToday}`);
+          return !overlapsWithToday;
         });
         
         console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.toISOString().split('T')[0]}`);
