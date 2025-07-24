@@ -284,7 +284,7 @@ module.exports = (app) => {
               block_id: 'reason',
               label: {
                 type: 'plain_text',
-                text: 'Reason (Required for Other leave type)',
+                text: 'Reason (Optional)',
                 emoji: true
               },
               element: {
