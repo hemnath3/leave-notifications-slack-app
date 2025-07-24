@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 2:15 PM AEST (for testing)
-    cron.schedule('15 14 * * *', async () => {
+    // Schedule daily morning notification at 2:20 PM AEST (for testing)
+    cron.schedule('20 14 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -177,12 +177,9 @@ class NotificationScheduler {
 
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
-        const startDate = moment(leave.startDate).tz('Australia/Sydney');
-        const startDateStr = startDate.format('YYYY-MM-DD');
-        const todayStr = today.toISOString().split('T')[0];
-        const isToday = startDateStr === todayStr;
-        console.log(`🔍 Leave ${leave.userName} start date: ${startDateStr}, today: ${todayStr}, isToday: ${isToday}`);
-        return isToday; // Only leaves that start exactly today
+        const startDate = new Date(leave.startDate);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
       });
       
       console.log(`🔍 Scheduler: Today's key: ${today.toISOString().split('T')[0]}`);
