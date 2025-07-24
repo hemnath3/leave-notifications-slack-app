@@ -982,24 +982,21 @@ module.exports = (app) => {
     try {
       console.log('🔍 Manual reminder requested for channel:', command.channel_id);
       
-      // Get today's leaves for this specific channel
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Get today's leaves for this specific channel with timezone-aware dates
+      const today = DateUtils.getCurrentDate().startOf('day');
+      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
       
       // Add debugging for send-reminder
-      console.log('🔍 Send-reminder: Today:', today.toISOString().split('T')[0]);
-      console.log('🔍 Send-reminder: Tomorrow:', tomorrow.toISOString().split('T')[0]);
+      console.log('🔍 Send-reminder: Today:', today.format('YYYY-MM-DD'));
+      console.log('🔍 Send-reminder: Tomorrow:', tomorrow.format('YYYY-MM-DD'));
       
       const leaves = await Leave.find({
         $or: [
           { channelId: command.channel_id }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow }, // Include leaves that start today or tomorrow
-        endDate: { $gte: today }       // Include leaves that end today or later
+        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
       console.log('🔍 Send-reminder: Found', leaves.length, 'leaves for channel', command.channel_id);
@@ -1009,9 +1006,9 @@ module.exports = (app) => {
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
-        const startDate = new Date(leave.startDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
+        const startDate = moment(leave.startDate).tz('Australia/Sydney');
+        const startDateStr = startDate.format('YYYY-MM-DD');
+        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
       });
       
       // Create the base message structure

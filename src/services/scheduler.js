@@ -53,35 +53,34 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
-      // Use the exact same logic as send-reminder
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Use the exact same logic as send-reminder with timezone-aware dates
+      const today = DateUtils.getCurrentDate().startOf('day');
+      const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
       
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      console.log('🔍 Scheduler: Today:', today.toISOString().split('T')[0]);
-      console.log('🔍 Scheduler: Tomorrow:', tomorrow.toISOString().split('T')[0]);
+      console.log('🔍 Scheduler: Today:', today.format('YYYY-MM-DD'));
+      console.log('🔍 Scheduler: Tomorrow:', tomorrow.format('YYYY-MM-DD'));
       
       const leaves = await Leave.find({
         $or: [
           { channelId: channelId }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow }, // Include leaves that start today or tomorrow
-        endDate: { $gte: today }       // Include leaves that end today or later
+        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
       console.log('🔍 Scheduler: Found', leaves.length, 'leaves for channel', channelId);
       leaves.forEach(leave => {
-        console.log('🔍 Scheduler: Leave -', leave.userName, '(', leave.startDate.toISOString().split('T')[0], 'to', leave.endDate.toISOString().split('T')[0], ')');
+        const startDate = moment(leave.startDate).tz('Australia/Sydney').format('YYYY-MM-DD');
+        const endDate = moment(leave.endDate).tz('Australia/Sydney').format('YYYY-MM-DD');
+        console.log('🔍 Scheduler: Leave -', leave.userName, '(', startDate, 'to', endDate, ')');
       });
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
-        const startDate = new Date(leave.startDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
+        const startDate = moment(leave.startDate).tz('Australia/Sydney');
+        const startDateStr = startDate.format('YYYY-MM-DD');
+        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
       });
       
       // Create the base message structure
