@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('37 11 * * *', async () => {
+    cron.schedule('46 11 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -173,30 +173,15 @@ class NotificationScheduler {
         return;
       }
 
-      // Group leaves by date
-      const leavesByDate = {};
-      leaves.forEach(leave => {
-        const start = moment(leave.startDate).tz('Australia/Sydney');
-        const end = moment(leave.endDate).tz('Australia/Sydney');
-        
-        for (let d = start.clone(); d.isSameOrBefore(end); d.add(1, 'day')) {
-          const dateKey = d.format('YYYY-MM-DD');
-          if (!leavesByDate[dateKey]) {
-            leavesByDate[dateKey] = [];
-          }
-          leavesByDate[dateKey].push(leave);
-        }
+      // Show all leaves that overlap with today (including ongoing leaves)
+      const currentLeaves = leaves.filter(leave => {
+        const startDate = new Date(leave.startDate);
+        const endDate = new Date(leave.endDate);
+        return startDate <= tomorrow.toDate() && endDate >= today.toDate(); // Include all overlapping leaves
       });
       
-      // Send reminder for today
-      const todayKey = today.format('YYYY-MM-DD');
-      const todaysLeaves = leavesByDate[todayKey] || [];
-      
-      // Show all leaves that overlap with today (including ongoing leaves)
-      const currentLeaves = todaysLeaves;
-      
-      console.log(`🔍 Scheduler: Today's key: ${todayKey}`);
-      console.log(`🔍 Scheduler: Today's leaves: ${todaysLeaves.length}`);
+      console.log(`🔍 Scheduler: Today's key: ${today.format('YYYY-MM-DD')}`);
+      console.log(`🔍 Scheduler: Today's leaves: ${currentLeaves.length}`);
       console.log(`🔍 Scheduler: Current leaves: ${currentLeaves.length}`);
       
       // Create the base message structure
