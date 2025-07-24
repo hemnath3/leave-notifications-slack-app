@@ -119,7 +119,8 @@ class TeamService {
         console.log(`🔍 User channels:`, userChannels.map(c => `#${c.name} (${c.id}) - Private: ${c.is_private}`));
       } catch (userError) {
         console.log(`⚠️ Could not get user conversations:`, userError.message);
-        // Fallback: try to get from team memberships
+        // Fallback: try to get from team memberships, but be more restrictive
+        console.log(`⚠️ Using fallback logic - this may not be accurate`);
         userChannels = allTeams
           .filter(team => team.members.some(member => member.userId === userId))
           .map(team => ({
@@ -127,6 +128,7 @@ class TeamService {
             name: team.channelName,
             is_private: false // We don't know, assume public
           }));
+        console.log(`⚠️ Fallback user channels:`, userChannels.map(c => `#${c.name} (${c.id})`));
       }
       
       // Step 2: Get all channels where app is installed (using bot token)

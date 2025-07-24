@@ -37,78 +37,25 @@ module.exports = (app) => {
         userEmail: userInfo.user.profile?.email || ''
       });
       
-      // Get all channels where user is a member and app is installed
-      const userChannels = await TeamService.getUserChannelsWithApp(command.user_id, client);
-      
-      console.log(`🔍 User channels found: ${userChannels.length}`, 
-        userChannels.map(c => `#${c.channelName}`));
-      
-      // Debug current channel pre-selection
-      const currentChannelInList = userChannels.find(ch => ch.channelId === command.channel_id);
-      console.log('🔍 Current channel in available list?', !!currentChannelInList);
-      console.log('🔍 Current channel ID:', command.channel_id);
-      console.log('🔍 Current channel name:', command.channel_name || 'Unknown');
-      console.log('🔍 Available channel IDs:', userChannels.map(c => c.channelId));
-      
-      if (currentChannelInList) {
-        console.log('✅ Current channel found in list:', {
-          channelId: currentChannelInList.channelId,
-          channelName: currentChannelInList.channelName,
-          isPrivate: currentChannelInList.isPrivate
+      // Simplified approach: Just get the current channel info
+      let currentChannelName = 'Unknown Channel';
+      try {
+        const currentChannelInfo = await client.conversations.info({
+          channel: command.channel_id
         });
-      } else {
-        console.log('❌ Current channel NOT found in available channels list!');
-        console.log('🔍 This means the current channel will NOT be pre-selected in the dropdown');
+        currentChannelName = currentChannelInfo.channel.name;
+      } catch (error) {
+        console.log('⚠️ Could not get current channel info:', error.message);
       }
       
-      // If only one channel found, add a note about progressive discovery
-      if (userChannels.length === 1) {
-        console.log('💡 Note: Only one channel found. User may need to use the command in other channels first to be added to those teams.');
-      }
+      // Create a simple list with just the current channel
+      const userChannels = [{
+        channelId: command.channel_id,
+        channelName: currentChannelName,
+        isPrivate: false
+      }];
       
-      // If no channels found, add current channel as fallback
-      if (userChannels.length === 0) {
-        console.log('⚠️ No channels found, adding current channel as fallback');
-        
-        // Try to get current channel info
-        let currentChannelName = 'Unknown Channel';
-        try {
-          const currentChannelInfo = await client.conversations.info({
-            channel: command.channel_id
-          });
-          currentChannelName = currentChannelInfo.channel.name;
-        } catch (error) {
-          console.log('⚠️ Could not get current channel info:', error.message);
-        }
-        
-        userChannels.push({
-          channelId: command.channel_id,
-          channelName: currentChannelName,
-          isPrivate: false
-        });
-      }
-      
-      // Ensure current channel is always in the list if user is running command from it
-      if (!currentChannelInList) {
-        console.log('⚠️ Current channel not in list, adding it as fallback');
-        
-        // Try to get current channel info
-        let currentChannelName = 'Unknown Channel';
-        try {
-          const currentChannelInfo = await client.conversations.info({
-            channel: command.channel_id
-          });
-          currentChannelName = currentChannelInfo.channel.name;
-        } catch (error) {
-          console.log('⚠️ Could not get current channel info:', error.message);
-        }
-        
-        userChannels.push({
-          channelId: command.channel_id,
-          channelName: currentChannelName,
-          isPrivate: false
-        });
-      }
+      console.log(`🔍 Using simplified approach - current channel: #${currentChannelName} (${command.channel_id})`);
       
       // Get today's date for the modal in AEST
       const today = DateUtils.getTodayString();
