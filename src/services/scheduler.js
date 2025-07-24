@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 2:02 PM AEST (for testing)
-    cron.schedule('2 14 * * *', async () => {
+    // Schedule daily morning notification at 2:06 PM AEST (for testing)
+    cron.schedule('6 14 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -322,8 +322,9 @@ class NotificationScheduler {
       }
       
       // Ensure we have at least a header block if no other content
+      console.log(`🔍 Channel ${channelId}: Final blocks count before sending: ${blocks.length}`);
       if (blocks.length === 0) {
-        console.log('⚠️ No blocks found, adding default header for channel:', channelId);
+        console.log(`⚠️ No blocks found, adding default header for channel: ${channelId}`);
         blocks.push({
           type: 'header',
           text: {
@@ -339,25 +340,26 @@ class NotificationScheduler {
             text: '📅 No team members are away today! Everyone is available. 🎉'
           }
         });
+        console.log(`✅ Added default blocks for channel ${channelId}, new count: ${blocks.length}`);
       }
       
       console.log('🔄 Blocks after upcoming section:', blocks.length);
       
       try {
-        console.log('📤 About to send message to channel:', channelId);
-        console.log('📤 Message blocks count:', blocks.length);
+        console.log(`📤 Channel ${channelId}: About to send message`);
+        console.log(`📤 Channel ${channelId}: Message blocks count: ${blocks.length}`);
         if (blocks.length === 0) {
-          console.log('⚠️ No blocks to send for channel:', channelId);
+          console.log(`⚠️ Channel ${channelId}: No blocks to send, skipping`);
           return;
         }
-        console.log('📤 Message blocks:', JSON.stringify(blocks, null, 2));
-        console.log('📤 Slack API call starting for channel:', channelId);
+        console.log(`📤 Channel ${channelId}: Message blocks:`, JSON.stringify(blocks, null, 2));
+        console.log(`📤 Channel ${channelId}: Slack API call starting`);
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
           text: 'Daily Team Availability Update', // Add fallback text
           blocks: blocks
         });
-        console.log('✅ Message sent successfully to channel:', channelId);
+        console.log(`✅ Channel ${channelId}: Message sent successfully`);
       } catch (error) {
         if (error.code === 'slack_webapi_platform_error' && error.data.error === 'not_in_channel') {
           console.log(`⚠️ App is not a member of channel ${channelId}. Skipping daily notification.`);
