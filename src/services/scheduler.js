@@ -300,30 +300,13 @@ class NotificationScheduler {
         });
       }
       
-      // Always call upcoming section and let it handle the logic (identical to send-reminder)
+      // Add upcoming leaves section only if there are upcoming leaves (identical to send-reminder)
       console.log('🔄 About to add upcoming leaves section...');
-      console.log('🔄 Current leaves count:', currentLeaves.length);
-      console.log('🔄 Blocks before upcoming section:', blocks.length);
-      
-      try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Upcoming section timeout')), 10000); // 10 second timeout
-        });
-        
-        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId);
-        const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
-        
-        if (hasUpcomingLeaves) {
-          console.log('✅ Upcoming leaves section added');
-        } else {
-          console.log('ℹ️ No upcoming leaves found, skipping section');
-        }
-      } catch (error) {
-        console.error('❌ Error in upcoming section:', error);
-        console.error('❌ Error details:', error.message);
-        console.error('❌ Error stack:', error.stack);
-        // Continue without upcoming section if there's an error
+      const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId);
+      if (hasUpcomingLeaves) {
+        console.log('✅ Upcoming leaves section added');
+      } else {
+        console.log('ℹ️ No upcoming leaves found, skipping section');
       }
       
       // Ensure we have at least a header block if no other content
