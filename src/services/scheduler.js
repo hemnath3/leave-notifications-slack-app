@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 3:07 PM AEST (for testing)
-    cron.schedule('7 15 * * *', async () => {
+    // Schedule daily morning notification at 3:08 PM AEST (for testing)
+    cron.schedule('8 15 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -300,20 +300,18 @@ class NotificationScheduler {
         });
       }
       
-      // Always call upcoming section and let it handle the logic
+      // Always call upcoming section and let it handle the logic (identical to send-reminder)
       console.log('🔄 About to add upcoming leaves section...');
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
       
-      // Add upcoming leaves section only if there are upcoming leaves (identical to send-reminder)
-      console.log('🔄 About to add upcoming leaves section...');
       try {
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Upcoming section timeout')), 10000); // 10 second timeout
         });
         
-        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
+        const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId);
         const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
         
         if (hasUpcomingLeaves) {
@@ -405,10 +403,9 @@ class NotificationScheduler {
     return emojis[type] || '📝';
   }
 
-  async addUpcomingLeavesSection(blocks, channelId, currentLeavesCount = 0) {
+  async addUpcomingLeavesSection(blocks, channelId) {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
-      // Use the exact same logic as send-reminder
       const today = DateUtils.getCurrentDate().startOf('day');
       console.log('📅 Today is:', today.format('YYYY-MM-DD'));
       const nextThreeDays = [];
@@ -445,7 +442,6 @@ class NotificationScheduler {
           startDate: { $lte: endOfDay },
           endDate: { $gte: startOfDay }
         }).lean();
-        console.log(`🔍 Query result for ${date.format('YYYY-MM-DD')}: ${leaves.length} leaves found`);
         
         // Filter out leaves that are already shown in today's section
         const filteredLeaves = leaves.filter(leave => {
@@ -460,6 +456,7 @@ class NotificationScheduler {
         
         console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
         
+        // Always add the date, even if no leaves (to show "No leaves" message)
         upcomingLeaves.push({
           date: date,
           leaves: filteredLeaves
@@ -471,13 +468,8 @@ class NotificationScheduler {
       // Check if any of the upcoming days have leaves
       const hasAnyUpcomingLeaves = upcomingLeaves.some(dayData => dayData.leaves.length > 0);
       
-      // Simple logic: only show upcoming section if there are upcoming leaves
-      if (!hasAnyUpcomingLeaves) {
-        console.log('ℹ️ No upcoming leaves found, skipping section');
-        return false;
-      }
-      
-      console.log('✅ Adding upcoming leaves section to blocks');
+      if (hasAnyUpcomingLeaves) {
+        console.log('✅ Adding upcoming leaves section to blocks');
         blocks.push({
           type: 'divider'
         });
@@ -544,6 +536,7 @@ class NotificationScheduler {
             }
           }
         }
+      }
       
       return hasAnyUpcomingLeaves;
     } catch (error) {
