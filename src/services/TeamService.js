@@ -148,7 +148,7 @@ class TeamService {
         }));
       }
       
-      // Step 3: Intersect the two results
+      // Step 3: Intersect the two results and verify bot membership
       const availableChannels = [];
       const userChannelIds = new Set(userChannels.map(c => c.id));
       const appChannelIds = new Set(appChannels.map(c => c.id));
@@ -163,13 +163,24 @@ class TeamService {
             continue;
           }
           
-          console.log(`🔍 Found available channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
-          
-          availableChannels.push({
-            channelId: userChannel.id,
-            channelName: userChannel.name,
-            isPrivate: userChannel.is_private || false
-          });
+          // Additional check: Verify bot can actually access this channel
+          try {
+            // This will fail if bot is not a member
+            await slackClient.conversations.info({
+              channel: userChannel.id
+            });
+            
+            console.log(`🔍 Found available channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
+            
+            availableChannels.push({
+              channelId: userChannel.id,
+              channelName: userChannel.name,
+              isPrivate: userChannel.is_private || false
+            });
+          } catch (error) {
+            console.log(`⚠️ Bot cannot access channel #${userChannel.name} (${userChannel.id}): ${error.data?.error || error.message}`);
+            // Skip this channel - bot is not a member
+          }
         }
       }
       

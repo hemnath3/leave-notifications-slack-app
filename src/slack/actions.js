@@ -190,6 +190,30 @@ module.exports = (app) => {
         return;
       }
       
+      // Validate: Check if bot is a member of all selected channels
+      const invalidChannels = [];
+      for (const channel of selectedChannels) {
+        try {
+          // Try to get channel info to check if bot is a member
+          await client.conversations.info({
+            channel: channel.value
+          });
+        } catch (error) {
+          if (error.code === 'slack_webapi_platform_error' && error.data.error === 'not_in_channel') {
+            invalidChannels.push(channel.text.text || channel.value);
+          }
+        }
+      }
+      
+      if (invalidChannels.length > 0) {
+        await client.chat.postEphemeral({
+          channel: metadata.channelId,
+          user: metadata.userId,
+          text: `❌ Error: The bot is not a member of these channels: ${invalidChannels.join(', ')}. Please select only channels where the bot is installed.`
+        });
+        return;
+      }
+      
       // Save user's channel preferences for next time
       await TeamService.saveUserChannelPreferences(metadata.userId, selectedChannels.map(c => c.value));
       
