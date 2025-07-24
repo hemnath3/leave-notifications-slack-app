@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:52 PM AEST (for debugging)
-    cron.schedule('52 13 * * *', async () => {
+    // Schedule daily morning notification at 1:58 PM AEST (for debugging)
+    cron.schedule('58 13 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -84,9 +84,10 @@ class NotificationScheduler {
         dateRange: `${today.format('YYYY-MM-DD')} to ${tomorrow.format('YYYY-MM-DD')}`
       });
       
-      // Use the exact same logic as the working send-reminder command
+      // Use the exact same logic as the working send-reminder command with timeout
       console.log(`🔍 Scheduler: About to query database for channel ${channelId}...`);
-      const leaves = await Leave.find({
+      
+      const queryPromise = Leave.find({
         $or: [
           { channelId: channelId }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
@@ -94,6 +95,12 @@ class NotificationScheduler {
         startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
         endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 5000); // 5 second timeout
+      });
+      
+      const leaves = await Promise.race([queryPromise, timeoutPromise]);
       console.log(`🔍 Scheduler: Database query completed for channel ${channelId}`);
       
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.format('YYYY-MM-DD')}`);
@@ -101,21 +108,35 @@ class NotificationScheduler {
       
       // Debug: Check all leaves notified to this channel (without team member filter)
       console.log(`🔍 Scheduler: About to query allLeavesNotifiedToChannel for ${channelId}...`);
-      const allLeavesNotifiedToChannel = await Leave.find({
+      
+      const notifiedQueryPromise = Leave.find({
         'notifiedChannels.channelId': channelId,
         startDate: { $lte: tomorrow.toDate() },
         endDate: { $gte: today.toDate() }
       });
+      
+      const notifiedTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Notified query timeout')), 3000); // 3 second timeout
+      });
+      
+      const allLeavesNotifiedToChannel = await Promise.race([notifiedQueryPromise, notifiedTimeoutPromise]);
       console.log(`🔍 Scheduler: allLeavesNotifiedToChannel query completed for ${channelId}`);
       
       // Debug: Check all leaves for this channel without any date filters
       console.log(`🔍 Scheduler: About to query allLeavesForChannel for ${channelId}...`);
-      const allLeavesForChannel = await Leave.find({
+      
+      const allLeavesQueryPromise = Leave.find({
         $or: [
           { channelId: channelId },
           { 'notifiedChannels.channelId': channelId }
         ]
       });
+      
+      const allLeavesTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('All leaves query timeout')), 3000); // 3 second timeout
+      });
+      
+      const allLeavesForChannel = await Promise.race([allLeavesQueryPromise, allLeavesTimeoutPromise]);
       console.log(`🔍 Scheduler: allLeavesForChannel query completed for ${channelId}`);
       console.log(`🔍 Scheduler: All leaves for channel ${channelId} (no date filter): ${allLeavesForChannel.length}`);
       allLeavesForChannel.forEach(leave => {
@@ -128,7 +149,11 @@ class NotificationScheduler {
       });
       
       // Debug: Check ALL leaves in database for this channel (without any filters)
-      const allLeavesInDB = await Leave.find({});
+      const allLeavesInDBPromise = Leave.find({});
+      const allLeavesInDBTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('All leaves in DB query timeout')), 5000); // 5 second timeout
+      });
+      const allLeavesInDB = await Promise.race([allLeavesInDBPromise, allLeavesInDBTimeoutPromise]);
       console.log(`🔍 Scheduler: ALL leaves in database: ${allLeavesInDB.length}`);
       allLeavesInDB.forEach(leave => {
         console.log(`🔍 Scheduler: DB Leave - ${leave.userName} (${leave.userId}) - ${leave.startDate} to ${leave.endDate} - Source: ${leave.channelName} - Notified:`, leave.notifiedChannels);
@@ -331,6 +356,18 @@ class NotificationScheduler {
     }
     } catch (error) {
       console.error(`Error processing daily notification for channel ${channelId}:`, error);
+      console.error(`Error details:`, error.message);
+      console.error(`Error stack:`, error.stack);
+      
+      // Send a simple error message to the channel if possible
+      try {
+        await this.slackApp.client.chat.postMessage({
+          channel: channelId,
+          text: '⚠️ Daily leave notification failed. Please try the `/send-reminder` command manually.'
+        });
+      } catch (slackError) {
+        console.error(`Could not send error message to channel ${channelId}:`, slackError);
+      }
     }
   }
 
@@ -379,6 +416,7 @@ class NotificationScheduler {
         
         console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay.toDate()} to ${endOfDay.toDate()})`);
         
+        console.log(`🔍 About to query leaves for ${date.format('YYYY-MM-DD')} with date range: ${startOfDay.toDate()} to ${endOfDay.toDate()}`);
         const leaves = await Leave.find({
           $or: [
             { channelId: channelId }, // Leaves stored in this channel
@@ -387,6 +425,7 @@ class NotificationScheduler {
           startDate: { $lte: endOfDay.toDate() },
           endDate: { $gte: startOfDay.toDate() }
         }).lean();
+        console.log(`🔍 Query result for ${date.format('YYYY-MM-DD')}: ${leaves.length} leaves found`);
         
         // Filter out leaves that are already shown in today's section
         const filteredLeaves = leaves.filter(leave => {
