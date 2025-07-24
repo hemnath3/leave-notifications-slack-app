@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('55 12 * * *', async () => {
+    cron.schedule('0 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -293,7 +293,7 @@ class NotificationScheduler {
       
       // Always call upcoming section and let it handle the logic
       console.log('🔄 About to add upcoming leaves section...');
-      const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId);
+      const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
       if (hasUpcomingLeaves) {
         console.log('✅ Upcoming leaves section added');
       } else {
@@ -331,7 +331,7 @@ class NotificationScheduler {
     return emojis[type] || '📝';
   }
 
-  async addUpcomingLeavesSection(blocks, channelId) {
+  async addUpcomingLeavesSection(blocks, channelId, currentLeavesCount = 0) {
     try {
       console.log('🔍 Adding upcoming leaves section for channel:', channelId);
       // Use the same date logic as the main function
@@ -401,6 +401,27 @@ class NotificationScheduler {
       
       // Check if any of the upcoming days have leaves
       const hasAnyUpcomingLeaves = upcomingLeaves.some(dayData => dayData.leaves.length > 0);
+      
+      // Implement the logic:
+      // 1. If there IS a leave for today AND NO leaves in upcoming days → Omit upcoming section
+      // 2. If there is NO leave today BUT there ARE leaves in upcoming days → Show upcoming section
+      // 3. If there is NO leave today AND NO leaves in upcoming days → Don't show upcoming section
+      
+      if (currentLeavesCount > 0 && !hasAnyUpcomingLeaves) {
+        // Case 1: Has leaves today but no upcoming → Omit upcoming section
+        console.log('ℹ️ Has leaves today but no upcoming → Omit upcoming section');
+        return false;
+      } else if (currentLeavesCount === 0 && hasAnyUpcomingLeaves) {
+        // Case 2: No leaves today but has upcoming → Show upcoming section
+        console.log('✅ No leaves today but has upcoming → Show upcoming section');
+      } else if (currentLeavesCount === 0 && !hasAnyUpcomingLeaves) {
+        // Case 3: No leaves today and no upcoming → Don't show upcoming section
+        console.log('ℹ️ No leaves today and no upcoming → Don\'t show upcoming section');
+        return false;
+      } else {
+        // Case 4: Has leaves today and has upcoming → Show upcoming section
+        console.log('✅ Has leaves today and has upcoming → Show upcoming section');
+      }
       
       if (hasAnyUpcomingLeaves) {
         console.log('✅ Adding upcoming leaves section to blocks');
