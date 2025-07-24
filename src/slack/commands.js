@@ -957,8 +957,8 @@ module.exports = (app) => {
           { channelId: command.channel_id }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
-        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
+        startDate: { $lte: tomorrow }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
       console.log('🔍 Send-reminder: Found', leaves.length, 'leaves for channel', command.channel_id);
