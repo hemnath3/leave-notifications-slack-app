@@ -274,10 +274,8 @@ module.exports = (app) => {
       await Promise.allSettled(teamPromises);
       
       // Create single leave record in source channel with notified channels
-      console.log('🔍 Creating leave with notified channels:', {
-        sourceChannel: { channelId: metadata.channelId, channelName: metadata.channelName },
-        notifiedChannels: channelInfo.map(ch => ({ channelId: ch.channelId, channelName: ch.channelName }))
-      });
+      console.log('🔍 Creating leave with notified channels - Source:', metadata.channelName, '(', metadata.channelId, ')');
+      console.log('🔍 Creating leave with notified channels - Notified to:', channelInfo.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       
       const leave = new Leave({
         userId: metadata.userId,
@@ -301,7 +299,8 @@ module.exports = (app) => {
       // Save the leave record with duplicate handling
       try {
         await leave.save();
-        console.log('✅ Leave saved successfully with notified channels:', leave.notifiedChannels);
+        console.log('✅ Leave saved successfully with notified channels count:', leave.notifiedChannels.length);
+        console.log('✅ Leave saved successfully with notified channels:', leave.notifiedChannels.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       } catch (error) {
         if (error.code === 11000) {
           // Duplicate key error - user already has a leave for this date range in this channel
