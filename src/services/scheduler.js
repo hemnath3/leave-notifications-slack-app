@@ -43,7 +43,12 @@ class NotificationScheduler {
       
       for (const team of teams) {
         console.log(`🔍 Scheduler: Processing team: ${team.teamName} (${team.channelId})`);
-        await this.sendDailyNotificationForChannel(team.channelId);
+        try {
+          await this.sendDailyNotificationForChannel(team.channelId);
+          console.log(`✅ Scheduler: Successfully sent to team: ${team.teamName} (${team.channelId})`);
+        } catch (error) {
+          console.log(`❌ Scheduler: Failed to send to team: ${team.teamName} (${team.channelId}) - Error: ${error.message}`);
+        }
         console.log(`🔍 Scheduler: Completed processing team: ${team.teamName} (${team.channelId})`);
       }
     } catch (error) {
