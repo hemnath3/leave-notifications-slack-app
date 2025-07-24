@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('50 11 * * *', async () => {
+    cron.schedule('55 11 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -162,11 +162,11 @@ class NotificationScheduler {
         return;
       }
 
-      // Show all leaves that overlap with today (including ongoing leaves)
+      // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
         const startDate = new Date(leave.startDate);
-        const endDate = new Date(leave.endDate);
-        return startDate <= tomorrow.toDate() && endDate >= today.toDate(); // Include all overlapping leaves
+        const startDateStr = startDate.toISOString().split('T')[0];
+        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
       });
       
       console.log(`🔍 Scheduler: Today's key: ${today.format('YYYY-MM-DD')}`);

@@ -966,11 +966,11 @@ module.exports = (app) => {
         console.log('🔍 Send-reminder: Leave -', leave.userName, '(', leave.startDate.toISOString().split('T')[0], 'to', leave.endDate.toISOString().split('T')[0], ')');
       });
       
-      // Show all leaves that overlap with today (not just those that start exactly today)
+      // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
         const startDate = new Date(leave.startDate);
-        const endDate = new Date(leave.endDate);
-        return startDate <= tomorrow && endDate >= today; // Include all overlapping leaves
+        const startDateStr = startDate.toISOString().split('T')[0];
+        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
       });
       
       // Create the base message structure
