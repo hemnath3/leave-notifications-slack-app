@@ -304,7 +304,7 @@ module.exports = (app) => {
               elements: [
                 {
                   type: 'mrkdwn',
-                  text: '📢 *Channel Selection:* Choose up to 3 channels to notify your leaves other than your current channel'
+                  text: '📢 *Channel Selection:* Choose up to 3 more channels to notify your leaves. Channels listed in the dropdown include channels you\'re part of and also has the app installed!'
                 }
               ]
             },
