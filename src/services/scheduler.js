@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:08 PM AEST (for debugging)
-    cron.schedule('8 13 * * *', async () => {
+    // Schedule daily morning notification at 1:13 PM AEST (for debugging)
+    cron.schedule('13 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -309,7 +309,7 @@ class NotificationScheduler {
       for (let i = 1; i <= 7; i++) { // Check up to 7 days ahead
         const checkDate = new Date(today);
         checkDate.setDate(checkDate.getDate() + i);
-        if (DateUtils.isWorkingDay(checkDate)) {
+        if (DateUtils.isWorkingDay(moment(checkDate).tz('Australia/Sydney'))) {
           nextThreeDays.push(checkDate);
           if (nextThreeDays.length >= 3) break;
         }
@@ -404,12 +404,13 @@ class NotificationScheduler {
         });
         
         for (const dayData of upcomingLeaves) {
-          const dateStr = dayData.date.format('Do MMM');
-          const dayName = dayData.date.format('dddd');
+          const dateMoment = moment(dayData.date).tz('Australia/Sydney');
+          const dateStr = dateMoment.format('Do MMM');
+          const dayName = dateMoment.format('dddd');
           
           // Check if it's tomorrow
           const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
-          const isTomorrow = dayData.date.isSame(tomorrow, 'day');
+          const isTomorrow = dateMoment.isSame(tomorrow, 'day');
           
           const dateHeader = isTomorrow ? 'Tomorrow' : `${dayName}, ${dateStr}`;
           
