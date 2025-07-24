@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('30 12 * * *', async () => {
+    cron.schedule('40 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -173,7 +173,7 @@ class NotificationScheduler {
         return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
       });
       
-      console.log(`🔍 Scheduler: Today's key: ${today.format('YYYY-MM-DD')}`);
+      console.log(`🔍 Scheduler: Today's key: ${today.toISOString().split('T')[0]}`);
       console.log(`🔍 Scheduler: Today's leaves: ${currentLeaves.length}`);
       console.log(`🔍 Scheduler: Current leaves: ${currentLeaves.length}`);
       
