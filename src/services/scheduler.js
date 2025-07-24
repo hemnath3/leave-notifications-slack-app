@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:21 PM AEST (for debugging)
-    cron.schedule('21 13 * * *', async () => {
+    // Schedule daily morning notification at 1:24 PM AEST (for debugging)
+    cron.schedule('24 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -272,8 +272,10 @@ class NotificationScheduler {
       try {
         console.log('📤 Sending message to channel:', channelId);
         console.log('📤 Message blocks count:', blocks.length);
+        console.log('📤 Message blocks:', JSON.stringify(blocks, null, 2));
         await this.slackApp.client.chat.postMessage({
           channel: channelId,
+          text: 'Daily Team Availability Update', // Add fallback text
           blocks: blocks
         });
         console.log('✅ Message sent successfully to channel:', channelId);
