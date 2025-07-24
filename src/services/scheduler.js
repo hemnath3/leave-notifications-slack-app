@@ -85,10 +85,8 @@ class NotificationScheduler {
         dateRange: `${today.toISOString().split('T')[0]} to ${tomorrow.toISOString().split('T')[0]}`
       });
       
-      // Use the exact same logic as the working send-reminder command with timeout
-      console.log(`🔍 Scheduler: About to query database for channel ${channelId}...`);
-      
-      const queryPromise = Leave.find({
+      // Use the exact same logic as the working send-reminder command
+      const leaves = await Leave.find({
         $or: [
           { channelId: channelId }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
@@ -97,83 +95,10 @@ class NotificationScheduler {
         endDate: { $gte: today }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 5000); // 5 second timeout
-      });
-      
-      const leaves = await Promise.race([queryPromise, timeoutPromise]);
-      console.log(`🔍 Scheduler: Database query completed for channel ${channelId}`);
-      
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
-      console.log(`🔍 Scheduler: Today: ${today.toISOString().split('T')[0]}, Tomorrow: ${tomorrow.toISOString().split('T')[0]}`);
-      
-      // Debug: Check all leaves notified to this channel (without team member filter)
-      console.log(`🔍 Scheduler: About to query allLeavesNotifiedToChannel for ${channelId}...`);
-      
-      const notifiedQueryPromise = Leave.find({
-        'notifiedChannels.channelId': channelId,
-        startDate: { $lte: tomorrow },
-        endDate: { $gte: today }
+      leaves.forEach(leave => {
+        console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate.toISOString().split('T')[0]} to ${leave.endDate.toISOString().split('T')[0]})`);
       });
-      
-      const notifiedTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Notified query timeout')), 3000); // 3 second timeout
-      });
-      
-      const allLeavesNotifiedToChannel = await Promise.race([notifiedQueryPromise, notifiedTimeoutPromise]);
-      console.log(`🔍 Scheduler: allLeavesNotifiedToChannel query completed for ${channelId}`);
-      
-      // Debug: Check all leaves for this channel without any date filters
-      console.log(`🔍 Scheduler: About to query allLeavesForChannel for ${channelId}...`);
-      
-      const allLeavesQueryPromise = Leave.find({
-        $or: [
-          { channelId: channelId },
-          { 'notifiedChannels.channelId': channelId }
-        ]
-      });
-      
-      const allLeavesTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('All leaves query timeout')), 3000); // 3 second timeout
-      });
-      
-      const allLeavesForChannel = await Promise.race([allLeavesQueryPromise, allLeavesTimeoutPromise]);
-      console.log(`🔍 Scheduler: allLeavesForChannel query completed for ${channelId}`);
-      console.log(`🔍 Scheduler: All leaves for channel ${channelId} (no date filter): ${allLeavesForChannel.length}`);
-      allLeavesForChannel.forEach(leave => {
-        console.log(`🔍 Scheduler: All leave for channel - ${leave.userName} (${leave.startDate} to ${leave.endDate}) - Source: ${leave.channelName}`);
-      });
-      console.log(`🔍 Scheduler: All leaves notified to channel ${channelId} (without team filter): ${allLeavesNotifiedToChannel.length}`);
-      allLeavesNotifiedToChannel.forEach(leave => {
-        console.log(`🔍 Scheduler: Leave notified to channel - ${leave.userName} (${leave.userId}) - ${leave.startDate} to ${leave.endDate}`);
-        console.log(`🔍 Scheduler: Leave notifiedChannels:`, leave.notifiedChannels);
-      });
-      
-      // Debug: Check ALL leaves in database for this channel (without any filters)
-      const allLeavesInDBPromise = Leave.find({});
-      const allLeavesInDBTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('All leaves in DB query timeout')), 5000); // 5 second timeout
-      });
-      const allLeavesInDB = await Promise.race([allLeavesInDBPromise, allLeavesInDBTimeoutPromise]);
-      console.log(`🔍 Scheduler: ALL leaves in database: ${allLeavesInDB.length}`);
-      allLeavesInDB.forEach(leave => {
-        console.log(`🔍 Scheduler: DB Leave - ${leave.userName} (${leave.userId}) - ${leave.startDate} to ${leave.endDate} - Source: ${leave.channelName} - Notified:`, leave.notifiedChannels);
-      });
-      
-      if (leaves.length === 0) {
-        // Check if there are any leaves for this channel at all (for debugging)
-        const allLeavesForChannel = await Leave.find({ channelId: channelId });
-        console.log(`🔍 Scheduler: Total leaves in database for channel ${channelId}: ${allLeavesForChannel.length}`);
-        allLeavesForChannel.forEach(leave => {
-          console.log(`🔍 Scheduler: All leave in DB - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
-        });
-      } else {
-        leaves.forEach(leave => {
-          console.log(`🔍 Scheduler: Leave - ${leave.userName} (${leave.startDate} to ${leave.endDate})`);
-        });
-      }
-      
-      // Remove early return to allow upcoming section to be added even when no current leaves
 
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
