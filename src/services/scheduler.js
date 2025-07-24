@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 2:40 PM AEST (for testing)
-    cron.schedule('40 14 * * *', async () => {
+    // Schedule daily morning notification at 2:56 PM AEST (for testing)
+    cron.schedule('56 14 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -186,7 +186,7 @@ class NotificationScheduler {
       console.log(`🔍 Scheduler: Today's leaves: ${currentLeaves.length}`);
       console.log(`🔍 Scheduler: Current leaves: ${currentLeaves.length}`);
       
-      // Create the base message structure
+      // Create the base message structure (identical to send-reminder)
       const blocks = [
         {
           type: 'header',
@@ -201,7 +201,7 @@ class NotificationScheduler {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📅 *Daily Team Availability Update* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
+              text: `📅 *Today's Team Availability* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
             }
           ]
         },
@@ -305,11 +305,8 @@ class NotificationScheduler {
       console.log('🔄 Current leaves count:', currentLeaves.length);
       console.log('🔄 Blocks before upcoming section:', blocks.length);
       
-      // Always call upcoming section and let it handle the logic
+      // Add upcoming leaves section only if there are upcoming leaves (identical to send-reminder)
       console.log('🔄 About to add upcoming leaves section...');
-      console.log('🔄 Current leaves count:', currentLeaves.length);
-      console.log('🔄 Blocks before upcoming section:', blocks.length);
-      
       try {
         // Add timeout to prevent hanging
         const timeoutPromise = new Promise((_, reject) => {
@@ -319,7 +316,6 @@ class NotificationScheduler {
         const upcomingPromise = this.addUpcomingLeavesSection(blocks, channelId, currentLeaves.length);
         const hasUpcomingLeaves = await Promise.race([upcomingPromise, timeoutPromise]);
         
-        console.log('🔄 Has upcoming leaves result:', hasUpcomingLeaves);
         if (hasUpcomingLeaves) {
           console.log('✅ Upcoming leaves section added');
         } else {
