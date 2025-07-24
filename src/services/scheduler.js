@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:35 PM AEST (for debugging)
-    cron.schedule('35 13 * * *', async () => {
+    // Schedule daily morning notification at 1:37 PM AEST (for debugging)
+    cron.schedule('37 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -45,12 +45,9 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
-      // Use the same date creation logic as send-reminder
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+      // Use the exact same date creation logic as send-reminder
+      const today = DateUtils.getCurrentDate().startOf('day');
+      const tomorrow = today.clone().add(1, 'day');
       
       // Get team info
       const team = await Team.getTeamByChannel(channelId);
@@ -72,14 +69,14 @@ class NotificationScheduler {
         dateRange: `${today.toISOString().split('T')[0]} to ${tomorrow.toISOString().split('T')[0]}`
       });
       
-      // Use the same logic as the working send-reminder command
+      // Use the exact same logic as the working send-reminder command
       const leaves = await Leave.find({
         $or: [
           { channelId: channelId }, // Leaves stored in this channel
           { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
         ],
-        startDate: { $lte: tomorrow }, // Include leaves that start today or tomorrow
-        endDate: { $gte: today }       // Include leaves that end today or later
+        startDate: { $lte: tomorrow.toDate() }, // Include leaves that start today or tomorrow
+        endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
       console.log(`🔍 Scheduler: Found ${leaves.length} leaves for channel ${channelId} on ${today.toISOString().split('T')[0]}`);
@@ -133,9 +130,9 @@ class NotificationScheduler {
 
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
       const currentLeaves = leaves.filter(leave => {
-        const startDate = new Date(leave.startDate);
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const todayStr = today.toISOString().split('T')[0];
+        const startDate = moment(leave.startDate).tz('Australia/Sydney');
+        const startDateStr = startDate.format('YYYY-MM-DD');
+        const todayStr = today.format('YYYY-MM-DD');
         const isToday = startDateStr === todayStr;
         console.log(`🔍 Leave ${leave.userName} start date: ${startDateStr}, today: ${todayStr}, isToday: ${isToday}`);
         return isToday; // Only leaves that start exactly today
