@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 10:05 AM AEST (for debugging)
-    cron.schedule('5 10 * * *', async () => {
+    // Schedule daily morning notification at 10:20 AM AEST (for debugging)
+    cron.schedule('20 10 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -60,12 +60,9 @@ class NotificationScheduler {
       
       console.log(`🔍 Scheduler: Team ${team.teamName} (${channelId}) has ${team.members.length} members:`, team.members.map(m => m.userName));
       
-      // Get leaves for today that are either stored in this channel OR notified to this channel
+      // Get leaves for today that are notified to this channel (what user chose to notify)
       const leaves = await Leave.find({
-        $or: [
-          { channelId: channelId }, // Leaves stored in this channel
-          { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
-        ],
+        'notifiedChannels.channelId': channelId, // Only leaves notified to this channel
         userId: { $in: teamMemberIds },
         startDate: { $lte: tomorrow.toDate() },
         endDate: { $gte: today.toDate() }
@@ -165,7 +162,7 @@ class NotificationScheduler {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
+              text: `📅 *Daily Team Availability Update* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
             }
           ]
         },

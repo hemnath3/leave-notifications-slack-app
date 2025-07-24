@@ -664,21 +664,15 @@ module.exports = (app) => {
         // Get team member user IDs
         const teamMemberIds = team.members.map(m => m.userId);
         
-        // Get leaves that are either stored in this channel OR notified to this channel
+        // Get leaves that are notified to this channel (what user chose to notify)
         leaves = await Leave.find({
-          $or: [
-            { channelId: command.channel_id }, // Leaves stored in this channel
-            { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
-          ],
+          'notifiedChannels.channelId': command.channel_id, // Only leaves notified to this channel
           userId: { $in: teamMemberIds }
         });
       } else {
         // Fallback: get all leaves for the channel if no team exists
         leaves = await Leave.find({
-          $or: [
-            { channelId: command.channel_id },
-            { 'notifiedChannels.channelId': command.channel_id }
-          ]
+          'notifiedChannels.channelId': command.channel_id
         });
       }
       
@@ -974,7 +968,7 @@ module.exports = (app) => {
           elements: [
             {
               type: 'mrkdwn',
-              text: `📅 *${DateUtils.getCurrentDate().format('dddd, MMMM Do, YYYY')}* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
+              text: `📅 *Today's Team Availability* | ⏰ *${DateUtils.getCurrentTimeString()} AEST*`
             }
           ]
         },
@@ -1134,159 +1128,7 @@ module.exports = (app) => {
     }
   });
 
-  // Command to manage user's leaves (view, edit, delete)
-  app.command('/my-leaves', async ({ command, ack, client }) => {
-    console.log('🔍 /my-leaves command received:', { 
-      user_id: command.user_id, 
-      channel_id: command.channel_id,
-      text: command.text 
-    });
-    
-    try {
-      await ack();
-      
-      console.log('🔍 My leaves requested by user:', command.user_id);
-      
-      // Get user's leaves (current and future)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      console.log('📅 Searching for leaves from:', today.toISOString());
-      
-      const userLeaves = await Leave.find({
-        userId: command.user_id,
-        endDate: { $gte: today }
-      }).sort({ startDate: 1 }).lean();
-      
-      console.log('📋 Found user leaves:', userLeaves.length);
-      
-      if (userLeaves.length === 0) {
-        console.log('📅 No leaves found for user');
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: '📅 You don\'t have any current or upcoming leaves scheduled.'
-        });
-        return;
-      }
-      
-      const blocks = [
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: '📋 Your Leave Schedule',
-            emoji: true
-          }
-        },
-        {
-          type: 'context',
-          elements: [
-            {
-              type: 'mrkdwn',
-              text: 'Click on a leave to edit or delete it'
-            }
-          ]
-        },
-        {
-          type: 'divider'
-        }
-      ];
-      
-      userLeaves.forEach((leave, index) => {
-        const startDate = new Date(leave.startDate);
-        const endDate = new Date(leave.endDate);
-        const isMultiDay = startDate.toDateString() !== endDate.toDateString();
-        
-        let emoji, text;
-        
-        if (isMultiDay) {
-          const startStr = startDate.toLocaleDateString();
-          const endStr = endDate.toLocaleDateString();
-          emoji = '🏖️';
-          text = `*${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}* (${startStr} - ${endStr})`;
-        } else {
-          if (leave.isFullDay) {
-            switch(leave.leaveType) {
-              case 'vacation':
-                emoji = '🏖️';
-                break;
-              case 'wellness':
-                emoji = '🧘';
-                break;
-              case 'sick':
-                emoji = '🤒';
-                break;
-              case 'personal':
-                emoji = '👤';
-                break;
-              default:
-                emoji = '📝';
-            }
-            text = `*${leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1)}* (${startDate.toLocaleDateString()})`;
-          } else {
-            emoji = '⏰';
-            text = `*Partial Day* (${startDate.toLocaleDateString()}, ${leave.startTime} - ${leave.endTime})`;
-          }
-        }
-        
-        if (leave.reason && leave.leaveType === 'other') {
-          text += `\n> _${leave.reason}_`;
-        }
-        
-        blocks.push({
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `${emoji} ${text}`
-          },
-          accessory: {
-            type: 'button',
-            text: {
-              type: 'plain_text',
-              text: 'Manage',
-              emoji: true
-            },
-            value: leave._id.toString(),
-            action_id: 'manage_leave'
-          }
-        });
-      });
-      
-      await client.chat.postEphemeral({
-        channel: command.channel_id,
-        user: command.user_id,
-        blocks: blocks
-      });
-      
-    } catch (error) {
-      console.error('❌ Error in /my-leaves command:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        command: command ? 'command exists' : 'no command'
-      });
-      
-      try {
-        await client.chat.postEphemeral({
-          channel: command.channel_id,
-          user: command.user_id,
-          text: '❌ Sorry, there was an error fetching your leaves. Please try again.'
-        });
-      } catch (ephemeralError) {
-        console.error('❌ Could not send error message to user:', ephemeralError);
-        // Try to send a DM as fallback
-        try {
-          await client.chat.postMessage({
-            channel: command.user_id,
-            text: '❌ Sorry, there was an error fetching your leaves. Please try again.'
-          });
-        } catch (dmError) {
-          console.error('❌ Could not send DM either:', dmError);
-        }
-      }
-    }
-  });
+
 
   // Helper function to add upcoming leaves section
   async function addUpcomingLeavesSection(blocks, channelId) {

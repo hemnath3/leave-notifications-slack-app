@@ -204,10 +204,16 @@ module.exports = (app) => {
       // Calculate working days for display
       const workingDays = DateUtils.getWorkingDays(start, end);
       
-      // Get channel information for selected channels
-      const channelInfo = await Promise.all(
-        selectedChannels.map(async (channelOption) => {
+      // Get channel information for selected channels (with rate limiting)
+      const channelInfo = await Promise.allSettled(
+        selectedChannels.map(async (channelOption, index) => {
           const channelId = channelOption.value;
+          
+          // Add small delay between API calls to avoid rate limiting
+          if (index > 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          
           try {
             const channelData = await client.conversations.info({ channel: channelId });
             return {
@@ -224,7 +230,13 @@ module.exports = (app) => {
             };
           }
         })
-      );
+      ).then(results => results.map(result => 
+        result.status === 'fulfilled' ? result.value : {
+          channelId: selectedChannels[results.indexOf(result)].value,
+          channelName: 'Unknown Channel',
+          isPrivate: false
+        }
+      ));
       
       // Auto-add user to source channel team
       await TeamService.autoAddUserToTeam(metadata.channelId, metadata.channelName, {
@@ -233,14 +245,22 @@ module.exports = (app) => {
         userEmail: metadata.userEmail
       });
       
-      // Auto-add user to all notified channel teams
-      for (const channel of channelInfo) {
-        await TeamService.autoAddUserToTeam(channel.channelId, channel.channelName, {
-          userId: metadata.userId,
-          userName: metadata.userName,
-          userEmail: metadata.userEmail
-        });
-      }
+      // Auto-add user to all notified channel teams (with error handling)
+      const teamPromises = channelInfo.map(async (channel) => {
+        try {
+          await TeamService.autoAddUserToTeam(channel.channelId, channel.channelName, {
+            userId: metadata.userId,
+            userName: metadata.userName,
+            userEmail: metadata.userEmail
+          });
+        } catch (error) {
+          console.log(`⚠️ Could not add user to team ${channel.channelName}:`, error.message);
+          // Continue with other channels even if one fails
+        }
+      });
+      
+      // Wait for all team additions to complete (but don't fail if some fail)
+      await Promise.allSettled(teamPromises);
       
       // Create single leave record in source channel with notified channels
       const leave = new Leave({
@@ -253,7 +273,7 @@ module.exports = (app) => {
         startTime: isFullDay ? '09:00' : startTime,
         endTime: isFullDay ? '17:00' : endTime,
         isFullDay,
-        reason: reason.trim() || 'No reason provided',
+        reason: reason.trim() || '',
         channelId: metadata.channelId,
         channelName: metadata.channelName,
         notifiedChannels: channelInfo.map(ch => ({
@@ -262,8 +282,21 @@ module.exports = (app) => {
         }))
       });
       
-      // Save the leave record
-      await leave.save();
+      // Save the leave record with duplicate handling
+      try {
+        await leave.save();
+      } catch (error) {
+        if (error.code === 11000) {
+          // Duplicate key error - user already has a leave for this date range in this channel
+          await client.chat.postEphemeral({
+            channel: metadata.channelId,
+            user: metadata.userId,
+            text: '❌ You already have a leave request for this date range in this channel. Please check your existing leaves or choose different dates.'
+          });
+          return;
+        }
+        throw error; // Re-throw other errors
+      }
       
       // Send confirmation message
       const startDateStr = DateUtils.formatDateForDisplay(start);
@@ -274,7 +307,7 @@ module.exports = (app) => {
       
       // Send confirmation to user
       try {
-        const reasonDisplay = reason.trim() || 'No reason provided';
+        const reasonDisplay = reason.trim() || (leaveType === 'other' ? 'No reason provided' : 'N/A');
         const channelList = channelInfo.map(ch => `${ch.isPrivate ? '🔒' : '#'}${ch.channelName}`).join(', ');
         
         await client.chat.postEphemeral({
