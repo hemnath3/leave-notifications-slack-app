@@ -81,7 +81,7 @@ module.exports = (app) => {
           callback_id: 'leave_request_modal',
           title: {
             type: 'plain_text',
-            text: 'Request Leave',
+            text: 'Notify your absence',
             emoji: true
           },
           submit: {
