@@ -17,7 +17,7 @@ class NotificationScheduler {
     }
 
     // Schedule daily morning notification at 11:30 AM AEST (for debugging)
-    cron.schedule('50 12 * * *', async () => {
+    cron.schedule('55 12 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -291,19 +291,13 @@ class NotificationScheduler {
         });
       }
       
-      // Add upcoming leaves section based on logic:
-      // - If no leaves today but upcoming leaves exist → show upcoming section
-      // - If leaves today but no upcoming leaves → don't show upcoming section
-      // - If no leaves today and no upcoming leaves → don't show upcoming section
+      // Always call upcoming section and let it handle the logic
       console.log('🔄 About to add upcoming leaves section...');
       const hasUpcomingLeaves = await this.addUpcomingLeavesSection(blocks, channelId);
-      
-      if (currentLeaves.length === 0 && hasUpcomingLeaves) {
-        // No leaves today but upcoming leaves exist → show upcoming section
-        console.log('✅ Upcoming leaves section added (no leaves today, has upcoming)');
+      if (hasUpcomingLeaves) {
+        console.log('✅ Upcoming leaves section added');
       } else {
-        // Either has leaves today (regardless of upcoming), or no leaves today with no upcoming → don't show
-        console.log('ℹ️ Upcoming section not shown (has leaves today OR no upcoming leaves)');
+        console.log('ℹ️ No upcoming leaves found, skipping section');
       }
       
       try {
