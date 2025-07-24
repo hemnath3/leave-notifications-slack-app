@@ -869,11 +869,18 @@ module.exports = (app) => {
             leaveTypeText = 'Other Leave';
         }
         
+        // Build channel information
+        let channelInfo = `📢 Source: #${leave.channelName}`;
+        if (leave.notifiedChannels && leave.notifiedChannels.length > 0) {
+          const notifiedChannelNames = leave.notifiedChannels.map(ch => `#${ch.channelName}`).join(', ');
+          channelInfo += `\n📢 Notified to: ${notifiedChannelNames}`;
+        }
+        
         return {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `${emoji} *${leaveTypeText}*\n📅 ${startDate}${isMultiDay ? ` to ${endDate}` : ''}\n⏰ ${duration}\n📢 Channel: #${leave.channelName}${!leave.isFullDay ? `\n💬 ${leave.reason}` : ''}`
+            text: `${emoji} *${leaveTypeText}*\n📅 ${startDate}${isMultiDay ? ` to ${endDate}` : ''}\n⏰ ${duration}\n${channelInfo}${!leave.isFullDay ? `\n💬 ${leave.reason}` : ''}`
           },
           accessory: {
             type: 'button',
