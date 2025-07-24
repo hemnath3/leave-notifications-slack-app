@@ -49,6 +49,13 @@ class NotificationScheduler {
       const today = DateUtils.getCurrentDate().startOf('day');
       const tomorrow = today.clone().add(1, 'day');
       
+      // Debug timezone info
+      console.log('🔍 Scheduler timezone debug:');
+      console.log('🔍 DateUtils.getCurrentDate():', DateUtils.getCurrentDate().format('YYYY-MM-DD HH:mm:ss Z'));
+      console.log('🔍 Today (startOf day):', today.format('YYYY-MM-DD HH:mm:ss Z'));
+      console.log('🔍 Tomorrow:', tomorrow.format('YYYY-MM-DD HH:mm:ss Z'));
+      console.log('🔍 Current timezone:', DateUtils.getCurrentDate().format('Z'));
+      
       // Get team info
       const team = await Team.getTeamByChannel(channelId);
       if (!team) {
