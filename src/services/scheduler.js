@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 1:32 PM AEST (for debugging)
-    cron.schedule('32 13 * * *', async () => {
+    // Schedule daily morning notification at 1:35 PM AEST (for debugging)
+    cron.schedule('35 13 * * *', async () => {
       console.log('Running daily leave notification...');
       await this.sendDailyNotifications();
     }, {
@@ -135,7 +135,10 @@ class NotificationScheduler {
       const currentLeaves = leaves.filter(leave => {
         const startDate = new Date(leave.startDate);
         const startDateStr = startDate.toISOString().split('T')[0];
-        return startDateStr === today.toISOString().split('T')[0]; // Only leaves that start exactly today
+        const todayStr = today.toISOString().split('T')[0];
+        const isToday = startDateStr === todayStr;
+        console.log(`🔍 Leave ${leave.userName} start date: ${startDateStr}, today: ${todayStr}, isToday: ${isToday}`);
+        return isToday; // Only leaves that start exactly today
       });
       
       console.log(`🔍 Scheduler: Today's key: ${today.toISOString().split('T')[0]}`);
