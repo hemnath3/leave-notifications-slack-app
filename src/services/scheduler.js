@@ -16,8 +16,8 @@ class NotificationScheduler {
       return;
     }
 
-    // Schedule daily morning notification at 2:56 PM AEST (for testing)
-    cron.schedule('56 14 * * *', async () => {
+    // Schedule daily morning notification at 3:07 PM AEST (for testing)
+    cron.schedule('7 15 * * *', async () => {
           console.log('Running daily leave notification...');
     console.log('🔍 Scheduler: Starting daily notifications for all channels...');
     await this.sendDailyNotifications();
@@ -426,7 +426,7 @@ class NotificationScheduler {
       
       if (nextThreeDays.length === 0) {
         console.log('⚠️ No working days found in next 7 days');
-        return;
+        return false;
       }
       
       // Get leaves for the next 3 working days
@@ -437,14 +437,13 @@ class NotificationScheduler {
         
         console.log(`🔍 Checking leaves for ${date.format('YYYY-MM-DD')} (${startOfDay} to ${endOfDay})`);
         
-        console.log(`🔍 About to query leaves for ${date.format('YYYY-MM-DD')} with date range: ${startOfDay} to ${endOfDay}`);
         const leaves = await Leave.find({
           $or: [
             { channelId: channelId }, // Leaves stored in this channel
             { 'notifiedChannels.channelId': channelId } // Leaves notified to this channel
           ],
-          startDate: { $lte: endOfDay.toDate() },
-          endDate: { $gte: startOfDay.toDate() }
+          startDate: { $lte: endOfDay },
+          endDate: { $gte: startOfDay }
         }).lean();
         console.log(`🔍 Query result for ${date.format('YYYY-MM-DD')}: ${leaves.length} leaves found`);
         
@@ -461,7 +460,6 @@ class NotificationScheduler {
         
         console.log(`📋 Found ${leaves.length} total leaves, ${filteredLeaves.length} future leaves for ${date.format('YYYY-MM-DD')}`);
         
-        // Always add the date, even if no leaves (to show "No leaves" message)
         upcomingLeaves.push({
           date: date,
           leaves: filteredLeaves
@@ -473,29 +471,13 @@ class NotificationScheduler {
       // Check if any of the upcoming days have leaves
       const hasAnyUpcomingLeaves = upcomingLeaves.some(dayData => dayData.leaves.length > 0);
       
-      // Implement the logic:
-      // 1. If there IS a leave for today AND NO leaves in upcoming days → Omit upcoming section
-      // 2. If there is NO leave today BUT there ARE leaves in upcoming days → Show upcoming section
-      // 3. If there is NO leave today AND NO leaves in upcoming days → Don't show upcoming section
-      
-      if (currentLeavesCount > 0 && !hasAnyUpcomingLeaves) {
-        // Case 1: Has leaves today but no upcoming → Omit upcoming section
-        console.log('ℹ️ Has leaves today but no upcoming → Omit upcoming section');
+      // Simple logic: only show upcoming section if there are upcoming leaves
+      if (!hasAnyUpcomingLeaves) {
+        console.log('ℹ️ No upcoming leaves found, skipping section');
         return false;
-      } else if (currentLeavesCount === 0 && hasAnyUpcomingLeaves) {
-        // Case 2: No leaves today but has upcoming → Show upcoming section
-        console.log('✅ No leaves today but has upcoming → Show upcoming section');
-      } else if (currentLeavesCount === 0 && !hasAnyUpcomingLeaves) {
-        // Case 3: No leaves today and no upcoming → Don't show upcoming section
-        console.log('ℹ️ No leaves today and no upcoming → Don\'t show upcoming section');
-        return false;
-      } else {
-        // Case 4: Has leaves today and has upcoming → Show upcoming section
-        console.log('✅ Has leaves today and has upcoming → Show upcoming section');
       }
       
-      if (hasAnyUpcomingLeaves) {
-        console.log('✅ Adding upcoming leaves section to blocks');
+      console.log('✅ Adding upcoming leaves section to blocks');
         blocks.push({
           type: 'divider'
         });
@@ -562,7 +544,6 @@ class NotificationScheduler {
             }
           }
         }
-      }
       
       return hasAnyUpcomingLeaves;
     } catch (error) {
