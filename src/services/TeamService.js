@@ -156,12 +156,16 @@ class TeamService {
       const appChannelIds = new Set(appChannels.map(c => c.id));
       
       for (const userChannel of userChannels) {
+        console.log(`🔍 Processing user channel: #${userChannel.name} (${userChannel.id})`);
+        console.log(`🔍 Is this channel in app channels? ${appChannelIds.has(userChannel.id)}`);
+        
         if (appChannelIds.has(userChannel.id)) {
           // This channel is both user-accessible and app-installed
           const appChannel = appChannels.find(c => c.id === userChannel.id);
           
           // Skip archived or closed channels
           if (userChannel.is_archived || userChannel.is_member === false) {
+            console.log(`⚠️ Skipping channel #${userChannel.name} (${userChannel.id}): archived=${userChannel.is_archived}, member=${userChannel.is_member}`);
             continue;
           }
           
@@ -183,6 +187,8 @@ class TeamService {
             console.log(`⚠️ Bot cannot access channel #${userChannel.name} (${userChannel.id}): ${error.data?.error || error.message}`);
             // Skip this channel - bot is not a member
           }
+        } else {
+          console.log(`⚠️ Channel #${userChannel.name} (${userChannel.id}) not found in app channels list`);
         }
       }
       
