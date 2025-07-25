@@ -119,7 +119,7 @@ class TeamService {
         return [];
       }
       
-      // Step 2: Get all channels where app is installed
+      // Step 2: Get all channels where app is installed (be more restrictive)
       let appChannels = [];
       try {
         const conversationsList = await slackClient.conversations.list({
@@ -127,14 +127,29 @@ class TeamService {
           exclude_archived: true,
           limit: 1000
         });
-        appChannels = conversationsList.channels || [];
-        console.log(`🔍 App has access to ${appChannels.length} channels`);
+        
+        // Filter to only channels where bot can actually post
+        const validAppChannels = [];
+        for (const channel of conversationsList.channels || []) {
+          try {
+            // Test if bot can actually post to this channel
+            await slackClient.conversations.info({
+              channel: channel.id
+            });
+            validAppChannels.push(channel);
+          } catch (error) {
+            console.log(`❌ App cannot post to #${channel.name} (${channel.id}): ${error.data?.error || error.message}`);
+          }
+        }
+        
+        appChannels = validAppChannels;
+        console.log(`🔍 App can actually post to ${appChannels.length} channels (out of ${conversationsList.channels?.length || 0} total)`);
       } catch (botError) {
         console.log(`⚠️ Could not get conversations list:`, botError.message);
         return [];
       }
       
-      // Step 3: Intersect and verify bot access
+      // Step 3: Intersect user channels with app channels (already filtered for bot access)
       const availableChannels = [];
       const appChannelIds = new Set(appChannels.map(c => c.id));
       
@@ -147,23 +162,13 @@ class TeamService {
             continue;
           }
           
-          // Pre-flight check: Verify bot can actually post to this channel
-          try {
-            await slackClient.conversations.info({
-              channel: userChannel.id
-            });
-            
-            console.log(`✅ Found valid channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
-            
-            availableChannels.push({
-              channelId: userChannel.id,
-              channelName: userChannel.name,
-              isPrivate: userChannel.is_private || false
-            });
-          } catch (error) {
-            console.log(`❌ Bot cannot access channel #${userChannel.name} (${userChannel.id}): ${error.data?.error || error.message}`);
-            // Skip this channel - bot is not a member
-          }
+          console.log(`✅ Found valid channel: #${userChannel.name} (${userChannel.id}) - Private: ${userChannel.is_private}`);
+          
+          availableChannels.push({
+            channelId: userChannel.id,
+            channelName: userChannel.name,
+            isPrivate: userChannel.is_private || false
+          });
         } else {
           console.log(`⚠️ Channel #${userChannel.name} (${userChannel.id}) not in app's channel list`);
         }
