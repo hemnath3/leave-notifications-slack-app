@@ -95,8 +95,8 @@ leaveSchema.pre('save', function(next) {
 leaveSchema.index({ startDate: 1, endDate: 1, channelId: 1 });
 leaveSchema.index({ userId: 1, startDate: 1 });
 
-// Unique compound index to prevent duplicate leaves for same user, date range, and channel
-leaveSchema.index({ userId: 1, startDate: 1, endDate: 1, channelId: 1 }, { unique: true });
+// Unique compound index to prevent duplicate leaves for same user, date range, channel, and leave type
+leaveSchema.index({ userId: 1, startDate: 1, endDate: 1, channelId: 1, leaveType: 1 }, { unique: true });
 
 // Static method to get leaves for a specific date range
 leaveSchema.statics.getLeavesForDateRange = function(startDate, endDate, channelId) {

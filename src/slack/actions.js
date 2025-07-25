@@ -319,12 +319,41 @@ module.exports = (app) => {
         console.log('✅ Leave saved successfully with notified channels:', leave.notifiedChannels.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       } catch (error) {
         if (error.code === 11000) {
-          // Duplicate key error - user already has a leave for this date range in this channel
-          await client.chat.postEphemeral({
-            channel: metadata.channelId,
-            user: metadata.userId,
-            text: '❌ You already have a leave request for this date range in this channel. Please check your existing leaves or choose different dates.'
-          });
+          // Duplicate key error - user already has a leave of the same type for this date range in this channel
+          console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
+          
+          // Check what existing leave exists
+          try {
+            const existingLeave = await Leave.findOne({
+              userId: metadata.userId,
+              startDate: { $lte: end },
+              endDate: { $gte: start },
+              channelId: metadata.channelId,
+              leaveType: leaveType
+            });
+            
+            if (existingLeave) {
+              const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
+              const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
+              await client.chat.postEphemeral({
+                channel: metadata.channelId,
+                user: metadata.userId,
+                text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
+              });
+            } else {
+              await client.chat.postEphemeral({
+                channel: metadata.channelId,
+                user: metadata.userId,
+                text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
+              });
+            }
+          } catch (checkError) {
+            await client.chat.postEphemeral({
+              channel: metadata.channelId,
+              user: metadata.userId,
+              text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
+            });
+          }
           return;
         }
         throw error; // Re-throw other errors
