@@ -623,56 +623,65 @@ module.exports = (app) => {
     }
   });
 
-  // Enhanced command to view leaves with filtering options
+  // Simplified command to view leaves with filtering options
   app.command('/leaves-today', async ({ command, ack, client }) => {
     await ack();
     
     try {
-      const args = command.text.trim().split(/\s+/);
-      let targetDate = DateUtils.getCurrentDate();
+      console.log('🔍 Leaves-today command:', command.text);
+      
+      // Parse arguments: /leaves-today [username] [date]
+      const args = command.text ? command.text.trim().split(/\s+/) : [];
+      let targetDate = DateUtils.getCurrentDate(); // Default to today
       let targetUser = null;
       
-      // Parse arguments
-      for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
+      // Simple argument parsing
+      if (args.length === 1) {
+        const arg = args[0];
         
-        // Check if it's a date (DD/MM/YYYY or YYYY-MM-DD format)
+        // Check if it's a date (DD/MM/YYYY format)
         if (arg.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-          // DD/MM/YYYY format
           const [day, month, year] = arg.split('/');
           targetDate = moment.tz(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`, 'Australia/Sydney');
-        } else if (arg.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          // YYYY-MM-DD format
-          targetDate = moment.tz(arg, 'Australia/Sydney');
-        } else if (arg && !targetUser) {
+        } else {
           // Assume it's a username
           targetUser = arg.toLowerCase();
         }
-      }
-      
-      // Get team info and filter leaves by team members
-      const team = await TeamService.getTeamByChannel(command.channel_id);
-      let leaves = [];
-      
-      if (team) {
-        // Get team member user IDs
-        const teamMemberIds = team.members.map(m => m.userId);
+      } else if (args.length === 2) {
+        // Format: /leaves-today username date
+        targetUser = args[0].toLowerCase();
+        const dateArg = args[1];
         
-        // Get leaves that are notified to this channel (what user chose to notify)
-        leaves = await Leave.find({
-          'notifiedChannels.channelId': command.channel_id, // Only leaves notified to this channel
-          userId: { $in: teamMemberIds }
+        if (dateArg.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+          const [day, month, year] = dateArg.split('/');
+          targetDate = moment.tz(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`, 'Australia/Sydney');
+        } else {
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: '❌ Invalid date format. Use DD/MM/YYYY (e.g., 23/07/2025)'
+          });
+          return;
+        }
+      } else if (args.length > 2) {
+        await client.chat.postEphemeral({
+          channel: command.channel_id,
+          user: command.user_id,
+          text: '❌ Too many arguments. Usage: `/leaves-today [username] [date]`'
         });
-      } else {
-        // Fallback: get all leaves for the channel if no team exists
-        leaves = await Leave.find({
-          'notifiedChannels.channelId': command.channel_id
-        });
+        return;
       }
       
-      // Filter by date using timezone-aware comparison
+      // Get leaves for this channel (leaves that were notified to this channel)
+      const leaves = await Leave.find({
+        'notifiedChannels.channelId': command.channel_id
+      }).sort({ startDate: 1 });
+      
+      console.log(`🔍 Found ${leaves.length} total leaves for channel ${command.channel_id}`);
+      
+      // Filter by date
       const targetDateStr = targetDate.format('YYYY-MM-DD');
-      leaves = leaves.filter(leave => {
+      let filteredLeaves = leaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const endDate = moment(leave.endDate).tz('Australia/Sydney');
         const startDateStr = startDate.format('YYYY-MM-DD');
@@ -682,42 +691,18 @@ module.exports = (app) => {
         return targetDateStr >= startDateStr && targetDateStr <= endDateStr;
       });
       
-      // If no specific date was provided, only show today's leaves (not past leaves)
-      if (!command.text.trim()) {
-        const todayStr = DateUtils.getTodayString();
-        leaves = leaves.filter(leave => {
-          const startDate = moment(leave.startDate).tz('Australia/Sydney');
-          const endDate = moment(leave.endDate).tz('Australia/Sydney');
-          const startDateStr = startDate.format('YYYY-MM-DD');
-          const endDateStr = endDate.format('YYYY-MM-DD');
-          
-          // Show leaves that either start today or are ongoing today
-          return startDateStr <= todayStr && endDateStr >= todayStr;
-        });
-      } else {
-        // If a specific date was provided, check if it's within 30 days in the past
-        if (!DateUtils.isWithinThirtyDaysPast(targetDate)) {
-          await client.chat.postEphemeral({
-            channel: command.channel_id,
-            user: command.user_id,
-            text: '❌ Error: Cannot view leaves more than 30 days in the past. Please select a more recent date.'
-          });
-          return;
-        }
-      }
+      console.log(`🔍 After date filtering: ${filteredLeaves.length} leaves for ${targetDateStr}`);
       
       // Filter by user if specified
       if (targetUser) {
-        leaves = leaves.filter(leave => 
+        filteredLeaves = filteredLeaves.filter(leave => 
           leave.userName.toLowerCase().includes(targetUser) ||
           leave.userId.toLowerCase().includes(targetUser)
         );
+        console.log(`🔍 After user filtering: ${filteredLeaves.length} leaves for user containing "${targetUser}"`);
       }
       
-      // Sort by start date
-      leaves.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-      
-      if (leaves.length === 0) {
+      if (filteredLeaves.length === 0) {
         const dateStr = DateUtils.formatDateForDisplay(targetDate);
         const userStr = targetUser ? ` for ${targetUser}` : '';
         await client.chat.postEphemeral({
@@ -728,7 +713,7 @@ module.exports = (app) => {
         return;
       }
       
-      const leaveBlocks = leaves.map(leave => {
+      const leaveBlocks = filteredLeaves.map(leave => {
         const startDate = new Date(leave.startDate).toLocaleDateString();
         const endDate = new Date(leave.endDate).toLocaleDateString();
         const duration = leave.isFullDay ? 'Full Day' : `${leave.startTime} - ${leave.endTime}`;
