@@ -95,6 +95,15 @@ leaveSchema.pre('save', function(next) {
 leaveSchema.index({ startDate: 1, endDate: 1, channelId: 1 });
 leaveSchema.index({ userId: 1, startDate: 1 });
 
+// Drop the old unique index if it exists (without leaveType)
+leaveSchema.on('index', function(error) {
+  if (error) {
+    console.error('❌ Index creation error:', error);
+  } else {
+    console.log('✅ Indexes created successfully');
+  }
+});
+
 // Unique compound index to prevent duplicate leaves for same user, date range, channel, and leave type
 leaveSchema.index({ userId: 1, startDate: 1, endDate: 1, channelId: 1, leaveType: 1 }, { unique: true });
 
