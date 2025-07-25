@@ -1082,10 +1082,16 @@ module.exports = (app) => {
       });
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
+      // Exclude "other" leave types that are partial day from the count
       const currentLeaves = leaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const startDateStr = startDate.format('YYYY-MM-DD');
-        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
+        const startsToday = startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
+        
+        // Exclude "other" leave types that are partial day from the count
+        const isOtherPartialDay = leave.leaveType === 'other' && !leave.isFullDay;
+        
+        return startsToday && !isOtherPartialDay;
       });
       
       // Create the base message structure
@@ -1094,7 +1100,7 @@ module.exports = (app) => {
           type: 'header',
           text: {
             type: 'plain_text',
-            text: '🌅 Good Morning! Today\'s Team Availability',
+            text: 'Today\'s Team Availability',
             emoji: true
           }
         },
@@ -1118,7 +1124,7 @@ module.exports = (app) => {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: '✅ *No team members are away today! Everyone is available.* 🎉'
+            text: '✅ *No leaves have been notified for today*'
           }
         });
       } else {
