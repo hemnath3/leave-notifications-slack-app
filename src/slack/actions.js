@@ -322,8 +322,23 @@ module.exports = (app) => {
           // Duplicate key error - user already has a leave of the same type for this date range in this channel
           console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
           
-          // Check what existing leave exists
+          // Debug: Check all leaves for this user in this channel for this date range
           try {
+            const allLeavesForDate = await Leave.find({
+              userId: metadata.userId,
+              startDate: { $lte: end },
+              endDate: { $gte: start },
+              channelId: metadata.channelId
+            });
+            
+            console.log('🔍 All leaves for this date range in this channel:', allLeavesForDate.map(l => ({
+              type: l.leaveType,
+              start: l.startDate,
+              end: l.endDate,
+              id: l._id
+            })));
+            
+            // Check what existing leave exists of the same type
             const existingLeave = await Leave.findOne({
               userId: metadata.userId,
               startDate: { $lte: end },
@@ -348,6 +363,7 @@ module.exports = (app) => {
               });
             }
           } catch (checkError) {
+            console.error('❌ Error checking existing leaves:', checkError);
             await client.chat.postEphemeral({
               channel: metadata.channelId,
               user: metadata.userId,
