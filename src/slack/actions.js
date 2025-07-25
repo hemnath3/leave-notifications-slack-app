@@ -337,9 +337,61 @@ module.exports = (app) => {
         }))
       });
       
+      // Special handling for "other" partial-day leaves - check for time conflicts
+      if (leaveType === 'other' && !isFullDay) {
+        console.log('🔍 Checking for time conflicts with existing "other" partial-day leaves');
+        
+        // Find existing "other" partial-day leaves for the same user, channel, and date
+        const existingOtherLeaves = await Leave.find({
+          userId: metadata.userId,
+          channelId: metadata.channelId,
+          leaveType: 'other',
+          isFullDay: false,
+          startDate: { $lte: end },
+          endDate: { $gte: start }
+        });
+        
+        console.log(`🔍 Found ${existingOtherLeaves.length} existing "other" partial-day leaves`);
+        
+        // Check for time conflicts
+        for (const existingLeave of existingOtherLeaves) {
+          const existingStart = moment(existingLeave.startDate).tz('Australia/Sydney');
+          const existingEnd = moment(existingLeave.endDate).tz('Australia/Sydney');
+          
+          // If same date, check time overlap
+          if (existingStart.format('YYYY-MM-DD') === startDate) {
+            const existingStartTime = existingLeave.startTime;
+            const existingEndTime = existingLeave.endTime;
+            
+            console.log(`🔍 Comparing times: New (${startTime}-${endTime}) vs Existing (${existingStartTime}-${existingEndTime})`);
+            
+            // Check if time periods overlap
+            const newStartMinutes = parseInt(startTime.split(':')[0]) * 60 + parseInt(startTime.split(':')[1]);
+            const newEndMinutes = parseInt(endTime.split(':')[0]) * 60 + parseInt(endTime.split(':')[1]);
+            const existingStartMinutes = parseInt(existingStartTime.split(':')[0]) * 60 + parseInt(existingStartTime.split(':')[1]);
+            const existingEndMinutes = parseInt(existingEndTime.split(':')[0]) * 60 + parseInt(existingEndTime.split(':')[1]);
+            
+            // Check for overlap: new start < existing end AND new end > existing start
+            if (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes) {
+              await client.chat.postEphemeral({
+                channel: metadata.channelId,
+                user: metadata.userId,
+                text: `❌ Time conflict detected! You already have an "other" leave from ${existingStartTime} to ${existingEndTime} on ${DateUtils.formatDateForDisplay(startDate)}. Please choose a different time period.`
+              });
+              return;
+            }
+          }
+        }
+        
+        console.log('✅ No time conflicts found - allowing multiple "other" partial-day leaves');
+      }
+      
       // Save the leave record with duplicate handling
+      let saveSuccessful = false;
+      
       try {
         await leave.save();
+        saveSuccessful = true;
         console.log('✅ Leave saved successfully with notified channels count:', leave.notifiedChannels.length);
         console.log('✅ Leave saved successfully with notified channels:', leave.notifiedChannels.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       } catch (error) {
@@ -347,10 +399,24 @@ module.exports = (app) => {
           // Duplicate key error - user already has a leave of the same type for this date range in this channel
           console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
           
-          // Allow duplicates for "other" leave type when it's a partial day (for different time zones)
+          // For "other" partial-day leaves, try to save with a slightly modified timestamp to bypass unique constraint
           if (leaveType === 'other' && !isFullDay) {
-            console.log('✅ Allowing duplicate "other" partial-day leave for different time zones');
-            // Continue with saving the leave
+            console.log('✅ Attempting to save "other" partial-day leave with modified timestamp');
+            try {
+              // Add 1 second to the start time to make it unique
+              leave.startDate = new Date(leave.startDate.getTime() + 1000);
+              await leave.save();
+              saveSuccessful = true;
+              console.log('✅ "Other" partial-day leave saved successfully with modified timestamp');
+            } catch (retryError) {
+              console.error('❌ Failed to save "other" partial-day leave even with modified timestamp:', retryError);
+              await client.chat.postEphemeral({
+                channel: metadata.channelId,
+                user: metadata.userId,
+                text: '❌ Failed to save leave request. Please try again.'
+              });
+              return;
+            }
           } else {
             // Check what existing leave exists of the same type
             try {
@@ -387,8 +453,9 @@ module.exports = (app) => {
             }
             return;
           }
+        } else {
+          throw error; // Re-throw other errors
         }
-        throw error; // Re-throw other errors
       }
       
       // Send confirmation message
