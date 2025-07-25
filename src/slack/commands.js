@@ -60,29 +60,6 @@ module.exports = (app) => {
       console.log(`🔍 User channels found: ${userChannels.length}`, 
         userChannels.map(c => `#${c.channelName}`));
       
-      // Ensure current channel is always in the list if user is running command from it
-      const currentChannelInList = userChannels.find(ch => ch.channelId === command.channel_id);
-      if (!currentChannelInList) {
-        console.log('⚠️ Current channel not in list, adding it as fallback');
-        
-        // Try to get current channel info
-        let currentChannelName = 'Unknown Channel';
-        try {
-          const currentChannelInfo = await client.conversations.info({
-            channel: command.channel_id
-          });
-          currentChannelName = currentChannelInfo.channel.name;
-        } catch (error) {
-          console.log('⚠️ Could not get current channel info:', error.message);
-        }
-        
-        userChannels.push({
-          channelId: command.channel_id,
-          channelName: currentChannelName,
-          isPrivate: false
-        });
-      }
-      
       console.log(`🔍 Final channel list: ${userChannels.length} channels`, 
         userChannels.map(c => `#${c.channelName} (${c.channelId})`));
       

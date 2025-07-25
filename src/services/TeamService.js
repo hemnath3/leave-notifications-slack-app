@@ -128,22 +128,9 @@ class TeamService {
           limit: 1000
         });
         
-        // Filter to only channels where bot can actually post
-        const validAppChannels = [];
-        for (const channel of conversationsList.channels || []) {
-          try {
-            // Test if bot can actually post to this channel
-            await slackClient.conversations.info({
-              channel: channel.id
-            });
-            validAppChannels.push(channel);
-          } catch (error) {
-            console.log(`❌ App cannot post to #${channel.name} (${channel.id}): ${error.data?.error || error.message}`);
-          }
-        }
-        
-        appChannels = validAppChannels;
-        console.log(`🔍 App can actually post to ${appChannels.length} channels (out of ${conversationsList.channels?.length || 0} total)`);
+        // Use all channels from conversations.list - they should be valid
+        appChannels = conversationsList.channels || [];
+        console.log(`🔍 App has access to ${appChannels.length} channels`);
       } catch (botError) {
         console.log(`⚠️ Could not get conversations list:`, botError.message);
         return [];
