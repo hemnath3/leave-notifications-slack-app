@@ -672,26 +672,17 @@ module.exports = (app) => {
         return;
       }
       
-      // Get leaves for this channel (leaves that were notified to this channel)
+      // Get leaves for this channel (either entered in this channel OR notified to this channel)
       const leaves = await Leave.find({
-        'notifiedChannels.channelId': command.channel_id
+        $or: [
+          { channelId: command.channel_id }, // Leaves entered in this channel
+          { 'notifiedChannels.channelId': command.channel_id } // Leaves notified to this channel
+        ]
       }).sort({ startDate: 1 });
       
       console.log(`🔍 Found ${leaves.length} total leaves for channel ${command.channel_id}`);
       
-      // Filter by date
-      const targetDateStr = targetDate.format('YYYY-MM-DD');
-      let filteredLeaves = leaves.filter(leave => {
-        const startDate = moment(leave.startDate).tz('Australia/Sydney');
-        const endDate = moment(leave.endDate).tz('Australia/Sydney');
-        const startDateStr = startDate.format('YYYY-MM-DD');
-        const endDateStr = endDate.format('YYYY-MM-DD');
-        
-        // Check if the target date falls within the leave period
-        return targetDateStr >= startDateStr && targetDateStr <= endDateStr;
-      });
-      
-      console.log(`🔍 After date filtering: ${filteredLeaves.length} leaves for ${targetDateStr}`);
+      let filteredLeaves = leaves;
       
       // Filter by user if specified
       if (targetUser) {
@@ -700,6 +691,31 @@ module.exports = (app) => {
           leave.userId.toLowerCase().includes(targetUser)
         );
         console.log(`🔍 After user filtering: ${filteredLeaves.length} leaves for user containing "${targetUser}"`);
+        
+        // For username queries, show all leaves (today and future) - no date filtering
+        const today = DateUtils.getCurrentDate().startOf('day');
+        filteredLeaves = filteredLeaves.filter(leave => {
+          const endDate = moment(leave.endDate).tz('Australia/Sydney');
+          const endDateStr = endDate.format('YYYY-MM-DD');
+          const todayStr = today.format('YYYY-MM-DD');
+          
+          // Show leaves that end today or in the future
+          return endDateStr >= todayStr;
+        });
+        console.log(`🔍 After future date filtering: ${filteredLeaves.length} leaves for user (today and future)`);
+      } else {
+        // For date queries, filter by specific date
+        const targetDateStr = targetDate.format('YYYY-MM-DD');
+        filteredLeaves = filteredLeaves.filter(leave => {
+          const startDate = moment(leave.startDate).tz('Australia/Sydney');
+          const endDate = moment(leave.endDate).tz('Australia/Sydney');
+          const startDateStr = startDate.format('YYYY-MM-DD');
+          const endDateStr = endDate.format('YYYY-MM-DD');
+          
+          // Check if the target date falls within the leave period
+          return targetDateStr >= startDateStr && targetDateStr <= endDateStr;
+        });
+        console.log(`🔍 After date filtering: ${filteredLeaves.length} leaves for ${targetDateStr}`);
       }
       
       if (filteredLeaves.length === 0) {
@@ -776,7 +792,7 @@ module.exports = (app) => {
             elements: [
               {
                 type: 'mrkdwn',
-                text: `💡 *Usage:* \`/leaves-today [username] [date]\`\nExamples:\n• \`/leaves-today\` - All leaves today\n• \`/leaves-today hemnath\` - Hemnath's leaves today\n• \`/leaves-today 23/07/2025\` - All leaves on 23rd July\n• \`/leaves-today hemnath 23/07/2025\` - Hemnath's leaves on 23rd July`
+                text: `💡 *Usage:* \`/leaves-today [username] [date]\`\nExamples:\n• \`/leaves-today\` - All leaves today\n• \`/leaves-today hemnath\` - All of Hemnath's leaves (today and future)\n• \`/leaves-today 23/07/2025\` - All leaves on 23rd July\n• \`/leaves-today hemnath 23/07/2025\` - Hemnath's leaves on 23rd July`
               }
             ]
           }
