@@ -767,9 +767,20 @@ module.exports = (app) => {
         };
       });
       
-      const dateStr = DateUtils.formatDateForDisplay(targetDate);
-      const userStr = targetUser ? ` for ${targetUser}` : '';
-      const title = `📅 Leaves for ${dateStr}${userStr}`;
+      // Create appropriate title based on query type
+      let title;
+      if (targetUser && !command.text.includes('/')) {
+        // Username only query - no date in title
+        title = `📅 ${targetUser.charAt(0).toUpperCase() + targetUser.slice(1)}'s Leaves`;
+      } else if (targetUser && command.text.includes('/')) {
+        // Username + date query
+        const dateStr = DateUtils.formatDateForDisplay(targetDate);
+        title = `📅 ${targetUser.charAt(0).toUpperCase() + targetUser.slice(1)}'s Leaves for ${dateStr}`;
+      } else {
+        // Date only or no arguments query
+        const dateStr = DateUtils.formatDateForDisplay(targetDate);
+        title = `📅 Leaves for ${dateStr}`;
+      }
       
       await client.chat.postEphemeral({
         channel: command.channel_id,
