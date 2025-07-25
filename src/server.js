@@ -79,8 +79,48 @@ expressApp.get('/health', (req, res) => {
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✅ Connected to MongoDB');
+    
+    // Fix database indexes on startup
+    try {
+      const collection = Leave.collection;
+      
+      // List all indexes
+      const indexes = await collection.indexes();
+      console.log('🔍 Current indexes:', indexes.map(idx => ({
+        name: idx.name,
+        key: idx.key,
+        unique: idx.unique
+      })));
+      
+      // Find and drop the old unique index (without leaveType)
+      const oldIndexName = 'userId_1_startDate_1_endDate_1_channelId_1';
+      const hasOldIndex = indexes.some(idx => idx.name === oldIndexName);
+      
+      if (hasOldIndex) {
+        console.log('🗑️ Dropping old unique index:', oldIndexName);
+        await collection.dropIndex(oldIndexName);
+        console.log('✅ Old index dropped successfully');
+      } else {
+        console.log('ℹ️ Old index not found, skipping drop');
+      }
+      
+      // Ensure the new index is created
+      console.log('🔧 Creating new unique index with leaveType...');
+      await Leave.createIndexes();
+      console.log('✅ New indexes created successfully');
+      
+      // Verify the new index
+      const newIndexes = await collection.indexes();
+      console.log('🔍 Updated indexes:', newIndexes.map(idx => ({
+        name: idx.name,
+        key: idx.key,
+        unique: idx.unique
+      })));
+    } catch (error) {
+      console.error('❌ Index migration failed:', error);
+    }
     
     // Start Express server
     expressApp.listen(PORT, () => {
