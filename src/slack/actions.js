@@ -20,6 +20,23 @@ module.exports = (app) => {
       return;
     }
     
+    // Client-side validation for "other" leave type
+    const values = view.state.values;
+    const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value;
+    const reasonKey = Object.keys(values.reason || {})[0];
+    const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
+    
+    // Validate reason is required for "other" leave type
+    if (leaveType === 'other' && (!reason || reason.trim() === '')) {
+      await ack({
+        response_action: 'errors',
+        errors: {
+          reason: 'Reason is required for "Other" leave type'
+        }
+      });
+      return;
+    }
+    
     await ack();
     
     try {
@@ -330,40 +347,46 @@ module.exports = (app) => {
           // Duplicate key error - user already has a leave of the same type for this date range in this channel
           console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
           
-          // Check what existing leave exists of the same type
-          try {
-            const existingLeave = await Leave.findOne({
-              userId: metadata.userId,
-              startDate: { $lte: end },
-              endDate: { $gte: start },
-              channelId: metadata.channelId,
-              leaveType: leaveType
-            });
-            
-            if (existingLeave) {
-              const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
-              const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
-              await client.chat.postEphemeral({
-                channel: metadata.channelId,
-                user: metadata.userId,
-                text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
+          // Allow duplicates for "other" leave type when it's a partial day (for different time zones)
+          if (leaveType === 'other' && !isFullDay) {
+            console.log('✅ Allowing duplicate "other" partial-day leave for different time zones');
+            // Continue with saving the leave
+          } else {
+            // Check what existing leave exists of the same type
+            try {
+              const existingLeave = await Leave.findOne({
+                userId: metadata.userId,
+                startDate: { $lte: end },
+                endDate: { $gte: start },
+                channelId: metadata.channelId,
+                leaveType: leaveType
               });
-            } else {
+              
+              if (existingLeave) {
+                const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
+                const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
+                await client.chat.postEphemeral({
+                  channel: metadata.channelId,
+                  user: metadata.userId,
+                  text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
+                });
+              } else {
+                await client.chat.postEphemeral({
+                  channel: metadata.channelId,
+                  user: metadata.userId,
+                  text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
+                });
+              }
+            } catch (checkError) {
+              console.error('❌ Error checking existing leaves:', checkError);
               await client.chat.postEphemeral({
                 channel: metadata.channelId,
                 user: metadata.userId,
                 text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
               });
             }
-          } catch (checkError) {
-            console.error('❌ Error checking existing leaves:', checkError);
-            await client.chat.postEphemeral({
-              channel: metadata.channelId,
-              user: metadata.userId,
-              text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
-            });
+            return;
           }
-          return;
         }
         throw error; // Re-throw other errors
       }
