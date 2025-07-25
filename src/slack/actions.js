@@ -321,25 +321,9 @@ module.exports = (app) => {
         if (error.code === 11000) {
           // Duplicate key error - user already has a leave of the same type for this date range in this channel
           console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
-          console.log('🔍 Full error details:', JSON.stringify(error, null, 2));
           
-          // Debug: Check all leaves for this user in this channel for this date range
+          // Check what existing leave exists of the same type
           try {
-            const allLeavesForDate = await Leave.find({
-              userId: metadata.userId,
-              startDate: { $lte: end },
-              endDate: { $gte: start },
-              channelId: metadata.channelId
-            });
-            
-            console.log('🔍 All leaves for this date range in this channel:', allLeavesForDate.map(l => ({
-              type: l.leaveType,
-              start: l.startDate,
-              end: l.endDate,
-              id: l._id
-            })));
-            
-            // Check what existing leave exists of the same type
             const existingLeave = await Leave.findOne({
               userId: metadata.userId,
               startDate: { $lte: end },
@@ -347,13 +331,6 @@ module.exports = (app) => {
               channelId: metadata.channelId,
               leaveType: leaveType
             });
-            
-            console.log('🔍 Existing leave of same type found:', existingLeave ? {
-              type: existingLeave.leaveType,
-              start: existingLeave.startDate,
-              end: existingLeave.endDate,
-              id: existingLeave._id
-            } : 'None');
             
             if (existingLeave) {
               const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
