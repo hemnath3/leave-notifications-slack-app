@@ -1082,16 +1082,10 @@ module.exports = (app) => {
       });
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
-      // Exclude "other" leave types that are partial day from the count
       const currentLeaves = leaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const startDateStr = startDate.format('YYYY-MM-DD');
-        const startsToday = startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
-        
-        // Exclude "other" leave types that are partial day from the count
-        const isOtherPartialDay = leave.leaveType === 'other' && !leave.isFullDay;
-        
-        return startsToday && !isOtherPartialDay;
+        return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
       });
       
       // Create the base message structure
