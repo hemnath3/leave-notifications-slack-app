@@ -34,11 +34,11 @@ class NotificationScheduler {
 
   async sendDailyNotifications() {
     try {
-      // Get all active teams (channels with the app installed)
-      const teams = await Team.getAllActiveTeams();
-      console.log(`🔍 Scheduler: Found ${teams.length} teams`);
+      // Get all active teams (channels with the app installed) where scheduler is enabled
+      const teams = await Team.find({ isActive: true, schedulerEnabled: true });
+      console.log(`🔍 Scheduler: Found ${teams.length} teams with scheduler enabled`);
       teams.forEach((team, index) => {
-        console.log(`🔍 Scheduler: Team ${index + 1}: ${team.teamName} (${team.channelId})`);
+        console.log(`🔍 Scheduler: Team ${index + 1}: ${team.teamName} (${team.channelId}) - Scheduler: ${team.schedulerEnabled ? 'ON' : 'OFF'}`);
       });
       
       for (const team of teams) {

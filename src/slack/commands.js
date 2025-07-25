@@ -981,11 +981,70 @@ module.exports = (app) => {
     }
   });
 
-  // Command to manually send daily reminder
+  // Command to manually send daily reminder or control scheduler
   app.command('/send-reminder', async ({ command, ack, client }) => {
     await ack();
     
     try {
+      console.log('🔍 Send-reminder command requested for channel:', command.channel_id, 'with text:', command.text);
+      
+      // Check if command has ON/OFF parameter
+      const args = command.text ? command.text.trim().toUpperCase() : '';
+      
+      if (args === 'ON' || args === 'OFF') {
+        // Handle scheduler control
+        const isEnabled = args === 'ON';
+        
+        try {
+          // Update team's scheduler status
+          const Team = require('../models/Team');
+          const team = await Team.findOne({ channelId: command.channel_id });
+          
+          if (!team) {
+            await client.chat.postEphemeral({
+              channel: command.channel_id,
+              user: command.user_id,
+              text: '❌ This channel is not registered with the leave notifications app.'
+            });
+            return;
+          }
+          
+          team.schedulerEnabled = isEnabled;
+          await team.save();
+          
+          // Send confirmation message to the channel
+          const statusText = isEnabled ? '🟢 ON' : '🔴 OFF';
+          const actionText = isEnabled ? 'enabled' : 'disabled';
+          
+          await client.chat.postMessage({
+            channel: command.channel_id,
+            text: `⏰ Automated Daily Leave Scheduler has been turned ${statusText} by <@${command.user_id}>`,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `⏰ *Automated Daily Leave Scheduler has been turned ${statusText}*\n\n• *Action:* ${actionText} by <@${command.user_id}>\n• *Channel:* <#${command.channel_id}>\n• *Status:* ${isEnabled ? 'Daily reminders will be sent at 9:00 AM AEST on weekdays' : 'Daily reminders are now disabled for this channel'}`
+                }
+              }
+            ]
+          });
+          
+          console.log(`✅ Scheduler ${actionText} for channel ${command.channel_id} by user ${command.user_id}`);
+          return;
+          
+        } catch (error) {
+          console.error('❌ Error updating scheduler status:', error);
+          await client.chat.postEphemeral({
+            channel: command.channel_id,
+            user: command.user_id,
+            text: '❌ Failed to update scheduler status. Please try again.'
+          });
+          return;
+        }
+      }
+      
+      // Original manual reminder logic
       console.log('🔍 Manual reminder requested for channel:', command.channel_id);
       
       // Get today's leaves for this specific channel with timezone-aware dates

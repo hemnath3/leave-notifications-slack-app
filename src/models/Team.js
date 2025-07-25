@@ -42,6 +42,10 @@ const teamSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  schedulerEnabled: {
+    type: Boolean,
+    default: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
