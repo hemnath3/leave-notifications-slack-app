@@ -119,22 +119,18 @@ class TeamService {
         return [];
       }
       
-      // Step 2: Get all channels where app is installed (be more restrictive)
-      let appChannels = [];
-      try {
-        const conversationsList = await slackClient.conversations.list({
-          types: 'public_channel,private_channel',
-          exclude_archived: true,
-          limit: 1000
-        });
-        
-        // Use all channels from conversations.list - they should be valid
-        appChannels = conversationsList.channels || [];
-        console.log(`🔍 App has access to ${appChannels.length} channels`);
-      } catch (botError) {
-        console.log(`⚠️ Could not get conversations list:`, botError.message);
-        return [];
-      }
+      // Step 2: Get all channels where app is installed (from database)
+      const allTeams = await this.getAllActiveTeams();
+      console.log(`🔍 Found ${allTeams.length} teams in database where app is installed`);
+      
+      const appChannels = allTeams.map(team => ({
+        id: team.channelId,
+        name: team.channelName,
+        is_private: false // We don't store this info, assume public
+      }));
+      
+      console.log(`🔍 App is installed in ${appChannels.length} channels:`, 
+        appChannels.map(c => `#${c.name} (${c.id})`));
       
       // Step 3: Intersect user channels with app channels (already filtered for bot access)
       const availableChannels = [];
