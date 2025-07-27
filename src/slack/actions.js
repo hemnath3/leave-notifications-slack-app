@@ -62,31 +62,46 @@ module.exports = (app) => {
       const endTime = endTimeKey ? values.end_time[endTimeKey].selected_time || '17:00' : '17:00';
       const reason = reasonKey ? values.reason[reasonKey].value || '' : '';
       
-      // Extract selected channels from dropdowns
+      // Extract selected channels from dropdowns with duplicate prevention
       const selectedChannels = [];
+      const selectedChannelIds = new Set(); // Track unique channel IDs
       
-      // Channel 1 (pre-selected by default)
+      // Channel 1 (pre-selected by default - current channel)
       const channel1Key = Object.keys(values.channel_1 || {})[0];
       if (channel1Key && values.channel_1[channel1Key].selected_option) {
-        selectedChannels.push(values.channel_1[channel1Key].selected_option);
+        const channel1 = values.channel_1[channel1Key].selected_option;
+        selectedChannels.push(channel1);
+        selectedChannelIds.add(channel1.value);
       }
       
       // Channel 2
       const channel2Key = Object.keys(values.channel_2 || {})[0];
       if (channel2Key && values.channel_2[channel2Key].selected_option && values.channel_2[channel2Key].selected_option.value !== 'none') {
-        selectedChannels.push(values.channel_2[channel2Key].selected_option);
+        const channel2 = values.channel_2[channel2Key].selected_option;
+        if (!selectedChannelIds.has(channel2.value)) {
+          selectedChannels.push(channel2);
+          selectedChannelIds.add(channel2.value);
+        }
       }
       
       // Channel 3
       const channel3Key = Object.keys(values.channel_3 || {})[0];
       if (channel3Key && values.channel_3[channel3Key].selected_option && values.channel_3[channel3Key].selected_option.value !== 'none') {
-        selectedChannels.push(values.channel_3[channel3Key].selected_option);
+        const channel3 = values.channel_3[channel3Key].selected_option;
+        if (!selectedChannelIds.has(channel3.value)) {
+          selectedChannels.push(channel3);
+          selectedChannelIds.add(channel3.value);
+        }
       }
       
       // Channel 4
       const channel4Key = Object.keys(values.channel_4 || {})[0];
       if (channel4Key && values.channel_4[channel4Key].selected_option && values.channel_4[channel4Key].selected_option.value !== 'none') {
-        selectedChannels.push(values.channel_4[channel4Key].selected_option);
+        const channel4 = values.channel_4[channel4Key].selected_option;
+        if (!selectedChannelIds.has(channel4.value)) {
+          selectedChannels.push(channel4);
+          selectedChannelIds.add(channel4.value);
+        }
       }
       
       console.log('🔍 Extracted values:', {

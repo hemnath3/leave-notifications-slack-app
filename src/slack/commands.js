@@ -306,7 +306,7 @@ module.exports = (app) => {
               block_id: 'channel_1',
               label: {
                 type: 'plain_text',
-                text: 'Channel 1',
+                text: 'Current Channel (Locked)',
                 emoji: true
               },
               element: {
@@ -331,7 +331,28 @@ module.exports = (app) => {
                     emoji: true
                   },
                   value: command.channel_id
-                } : undefined
+                } : undefined,
+                confirm: {
+                  title: {
+                    type: 'plain_text',
+                    text: 'Channel Locked',
+                    emoji: true
+                  },
+                  text: {
+                    type: 'mrkdwn',
+                    text: 'This channel is locked and cannot be changed. It represents the channel where you submitted this leave request.'
+                  },
+                  confirm: {
+                    type: 'plain_text',
+                    text: 'OK',
+                    emoji: true
+                  },
+                  deny: {
+                    type: 'plain_text',
+                    text: 'Cancel',
+                    emoji: true
+                  }
+                }
               }
             },
             {
@@ -339,7 +360,7 @@ module.exports = (app) => {
               block_id: 'channel_2',
               label: {
                 type: 'plain_text',
-                text: 'Channel 2',
+                text: 'Additional Channel 1',
                 emoji: true
               },
               element: {
@@ -358,14 +379,16 @@ module.exports = (app) => {
                     },
                     value: 'none'
                   },
-                  ...userChannels.map((channel) => ({
-                    text: {
-                      type: 'plain_text',
-                      text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
-                      emoji: true
-                    },
-                    value: channel.channelId
-                  }))
+                  ...userChannels
+                    .filter(channel => channel.channelId !== command.channel_id) // Exclude current channel
+                    .map((channel) => ({
+                      text: {
+                        type: 'plain_text',
+                        text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
+                        emoji: true
+                      },
+                      value: channel.channelId
+                    }))
                 ],
                 initial_option: {
                   text: {
@@ -382,7 +405,7 @@ module.exports = (app) => {
               block_id: 'channel_3',
               label: {
                 type: 'plain_text',
-                text: 'Channel 3',
+                text: 'Additional Channel 2',
                 emoji: true
               },
               element: {
@@ -401,14 +424,16 @@ module.exports = (app) => {
                     },
                     value: 'none'
                   },
-                  ...userChannels.map((channel) => ({
-                    text: {
-                      type: 'plain_text',
-                      text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
-                      emoji: true
+                  ...userChannels
+                    .filter(channel => channel.channelId !== command.channel_id) // Exclude current channel
+                    .map((channel) => ({
+                      text: {
+                        type: 'plain_text',
+                        text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
+                        emoji: true
                     },
-                    value: channel.channelId
-                  }))
+                      value: channel.channelId
+                    }))
                 ],
                 initial_option: {
                   text: {
@@ -425,7 +450,7 @@ module.exports = (app) => {
               block_id: 'channel_4',
               label: {
                 type: 'plain_text',
-                text: 'Channel 4',
+                text: 'Additional Channel 3',
                 emoji: true
               },
               element: {
@@ -444,14 +469,16 @@ module.exports = (app) => {
                     },
                     value: 'none'
                   },
-                  ...userChannels.map((channel) => ({
-                    text: {
-                      type: 'plain_text',
-                      text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
-                      emoji: true
+                  ...userChannels
+                    .filter(channel => channel.channelId !== command.channel_id) // Exclude current channel
+                    .map((channel) => ({
+                      text: {
+                        type: 'plain_text',
+                        text: `${channel.isPrivate ? '🔒' : '#'}${channel.channelName}`,
+                        emoji: true
                     },
-                    value: channel.channelId
-                  }))
+                      value: channel.channelId
+                    }))
                 ],
                 initial_option: {
                   text: {
