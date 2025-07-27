@@ -58,6 +58,25 @@ class NotificationScheduler {
 
   async sendDailyNotificationForChannel(channelId) {
     try {
+      // Check if channel is archived before proceeding
+      try {
+        const channelInfo = await this.slackApp.client.conversations.info({
+          channel: channelId
+        });
+        
+        if (channelInfo.channel.is_archived) {
+          console.log(`⚠️ Channel ${channelId} is archived. Skipping daily notification.`);
+          return;
+        }
+      } catch (channelError) {
+        if (channelError.code === 'slack_webapi_platform_error' && channelError.data.error === 'channel_not_found') {
+          console.log(`⚠️ Channel ${channelId} not found. Skipping daily notification.`);
+          return;
+        }
+        // For other errors, continue and let the message sending handle it
+        console.log(`⚠️ Could not check channel info for ${channelId}: ${channelError.message}`);
+      }
+      
       // Use the exact same logic as send-reminder with timezone-aware dates
       const today = DateUtils.getCurrentDate().startOf('day');
       const tomorrow = DateUtils.getCurrentDate().add(1, 'day').startOf('day');
@@ -217,8 +236,14 @@ class NotificationScheduler {
           blocks: blocks
         });
       } catch (error) {
-        if (error.code === 'slack_webapi_platform_error' && error.data.error === 'not_in_channel') {
-          console.log(`⚠️ App is not a member of channel ${channelId}. Skipping daily notification.`);
+        if (error.code === 'slack_webapi_platform_error') {
+          if (error.data.error === 'not_in_channel') {
+            console.log(`⚠️ App is not a member of channel ${channelId}. Skipping daily notification.`);
+          } else if (error.data.error === 'is_archived') {
+            console.log(`⚠️ Channel ${channelId} is archived. Skipping daily notification.`);
+          } else {
+            throw error; // Re-throw other errors
+          }
         } else {
           throw error; // Re-throw other errors
         }
@@ -231,7 +256,11 @@ class NotificationScheduler {
           text: '⚠️ Daily leave notification failed. Please try the `/send-reminder` command manually.'
         });
       } catch (slackError) {
-        console.error('❌ Could not send error message to channel:', slackError);
+        if (slackError.code === 'slack_webapi_platform_error' && slackError.data.error === 'is_archived') {
+          console.log(`⚠️ Channel ${channelId} is archived. Cannot send error message.`);
+        } else {
+          console.error('❌ Could not send error message to channel:', slackError);
+        }
       }
     }
   }
