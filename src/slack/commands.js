@@ -306,7 +306,7 @@ module.exports = (app) => {
               block_id: 'channel_1',
               label: {
                 type: 'plain_text',
-                text: 'Current Channel (Locked)',
+                text: 'Current Channel',
                 emoji: true
               },
               element: {
@@ -331,28 +331,7 @@ module.exports = (app) => {
                     emoji: true
                   },
                   value: command.channel_id
-                } : undefined,
-                confirm: {
-                  title: {
-                    type: 'plain_text',
-                    text: 'Channel Locked',
-                    emoji: true
-                  },
-                  text: {
-                    type: 'mrkdwn',
-                    text: 'This channel is locked and cannot be changed. It represents the channel where you submitted this leave request.'
-                  },
-                  confirm: {
-                    type: 'plain_text',
-                    text: 'OK',
-                    emoji: true
-                  },
-                  deny: {
-                    type: 'plain_text',
-                    text: 'Cancel',
-                    emoji: true
-                  }
-                }
+                } : undefined
               }
             },
             {
