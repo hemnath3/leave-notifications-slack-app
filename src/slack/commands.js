@@ -725,12 +725,21 @@ module.exports = (app) => {
       }
       
       if (filteredLeaves.length === 0) {
-        const dateStr = DateUtils.formatDateForDisplay(targetDate);
-        const userStr = targetUser ? ` for ${targetUser}` : '';
+        let message;
+        if (targetUser && !command.text.includes('/')) {
+          // Username only query - no date in message
+          message = `No leaves scheduled for ${targetUser}! 🎉`;
+        } else {
+          // Date query (with or without username)
+          const dateStr = DateUtils.formatDateForDisplay(targetDate);
+          const userStr = targetUser ? ` for ${targetUser}` : '';
+          message = `No leaves scheduled for ${dateStr}${userStr}! 🎉`;
+        }
+        
         await client.chat.postEphemeral({
           channel: command.channel_id,
           user: command.user_id,
-          text: `No leaves scheduled for ${dateStr}${userStr}! 🎉`
+          text: message
         });
         return;
       }
