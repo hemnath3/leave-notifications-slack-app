@@ -20,6 +20,8 @@ A comprehensive Slack application for managing leave requests with modal forms a
 
 ## Installation
 
+### Option 1: Local Development
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
@@ -47,14 +49,8 @@ A comprehensive Slack application for managing leave requests with modal forms a
    MONGODB_URI=mongodb://localhost:27017/leave-notifications
    
    # Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# Slack Channel Configuration
-DEFAULT_CHANNEL_ID=C1234567890
-
-# Note: NODE_TLS_REJECT_UNAUTHORIZED=0 is set in the code to prevent
-# SSL certificate warnings from the Slack Web API client
+   PORT=3000
+   NODE_ENV=development
    ```
 
 4. **Start the application**
@@ -65,6 +61,37 @@ DEFAULT_CHANNEL_ID=C1234567890
    # Production mode
    npm start
    ```
+
+### Option 2: Docker Deployment
+
+1. **Build the Docker image**
+   ```bash
+   docker build -t leave-notifications-app .
+   ```
+
+2. **Run with environment variables**
+   ```bash
+   docker run -d \
+     --name leave-notifications \
+     -p 3000:3000 \
+     -e SLACK_BOT_TOKEN=xoxb-your-bot-token \
+     -e SLACK_SIGNING_SECRET=your-signing-secret \
+     -e SLACK_APP_TOKEN=xapp-your-app-token \
+     -e MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/leave-notifications \
+     -e NODE_ENV=production \
+     leave-notifications-app
+   ```
+
+### Option 3: Railway Deployment
+
+1. **Connect your GitHub repository to Railway**
+2. **Set environment variables in Railway dashboard:**
+   - `SLACK_BOT_TOKEN`
+   - `SLACK_SIGNING_SECRET`
+   - `SLACK_APP_TOKEN`
+   - `MONGODB_URI`
+   - `NODE_ENV=production`
+3. **Deploy automatically on push to main branch**
 
 ## Slack App Setup
 
