@@ -302,6 +302,29 @@ module.exports = (app) => {
       const sourceChannel = selectedChannels[0];
       const sourceChannelInfo = channelInfo.find(ch => ch.channelId === sourceChannel.value);
       
+      // Check for existing leaves of the same type for the same date range in the source channel
+      const existingLeaves = await Leave.find({
+        userId: metadata.userId,
+        channelId: sourceChannel.value,
+        leaveType: leaveType,
+        startDate: { $lte: end },
+        endDate: { $gte: start }
+      });
+      
+      // If there's an existing leave of the same type, check if it's a duplicate
+      if (existingLeaves.length > 0) {
+        const existingLeave = existingLeaves[0];
+        const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
+        const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
+        
+        await client.chat.postEphemeral({
+          channel: sourceChannel.value,
+          user: metadata.userId,
+          text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
+        });
+        return;
+      }
+      
       // Create single leave record in source channel with notified channels
       console.log('🔍 Creating leave with notified channels - Source:', sourceChannelInfo.channelName, '(', sourceChannel.value, ')');
       console.log('🔍 Creating leave with notified channels - Notified to:', channelInfo.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
@@ -374,76 +397,19 @@ module.exports = (app) => {
         console.log('✅ No time conflicts found - allowing multiple "other" partial-day leaves');
       }
       
-      // Save the leave record with duplicate handling
-      let saveSuccessful = false;
-      
+      // Save the leave record
       try {
         await leave.save();
-        saveSuccessful = true;
         console.log('✅ Leave saved successfully with notified channels count:', leave.notifiedChannels.length);
         console.log('✅ Leave saved successfully with notified channels:', leave.notifiedChannels.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       } catch (error) {
-        if (error.code === 11000) {
-          // Duplicate key error - user already has a leave of the same type for this date range in this channel
-          console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', sourceChannel.value, 'date:', startDate, 'to', endDate, 'type:', leaveType);
-          
-          // For "other" partial-day leaves, try to save with a slightly modified timestamp to bypass unique constraint
-          if (leaveType === 'other' && !isFullDay) {
-            console.log('✅ Attempting to save "other" partial-day leave with modified timestamp');
-            try {
-              // Add 1 second to the start time to make it unique
-              leave.startDate = new Date(leave.startDate.getTime() + 1000);
-              await leave.save();
-              saveSuccessful = true;
-              console.log('✅ "Other" partial-day leave saved successfully with modified timestamp');
-            } catch (retryError) {
-              console.error('❌ Failed to save "other" partial-day leave even with modified timestamp:', retryError);
-              await client.chat.postEphemeral({
-                channel: metadata.channelId,
-                user: metadata.userId,
-                text: '❌ Failed to save leave request. Please try again.'
-              });
-              return;
-            }
-          } else {
-            // Check what existing leave exists of the same type
-            try {
-              const existingLeave = await Leave.findOne({
-                userId: metadata.userId,
-                startDate: { $lte: end },
-                endDate: { $gte: start },
-                channelId: sourceChannel.value,
-                leaveType: leaveType
-              });
-              
-              if (existingLeave) {
-                const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
-                const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
-                              await client.chat.postEphemeral({
-                channel: sourceChannel.value,
-                user: metadata.userId,
-                text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
-              });
-              } else {
-                await client.chat.postEphemeral({
-                  channel: sourceChannel.value,
-                  user: metadata.userId,
-                  text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
-                });
-              }
-            } catch (checkError) {
-              console.error('❌ Error checking existing leaves:', checkError);
-              await client.chat.postEphemeral({
-                channel: metadata.channelId,
-                user: metadata.userId,
-                text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
-              });
-            }
-            return;
-          }
-        } else {
-          throw error; // Re-throw other errors
-        }
+        console.error('❌ Error saving leave:', error);
+        await client.chat.postEphemeral({
+          channel: sourceChannel.value,
+          user: metadata.userId,
+          text: '❌ Failed to save leave request. Please try again.'
+        });
+        return;
       }
       
       // Send confirmation message
