@@ -678,9 +678,23 @@ module.exports = (app) => {
         ]
       }).sort({ startDate: 1 });
       
-      console.log(`🔍 Found ${leaves.length} total leaves for channel ${command.channel_id}`);
+      // Deduplicate leaves - if a leave is both stored in this channel AND notified to this channel,
+      // only show it once (prefer the stored version)
+      const uniqueLeaves = [];
+      const seenLeaveIds = new Set();
       
-      let filteredLeaves = leaves;
+      leaves.forEach(leave => {
+        const leaveKey = `${leave.userId}_${leave.startDate.toISOString().split('T')[0]}_${leave.endDate.toISOString().split('T')[0]}_${leave.leaveType}`;
+        if (!seenLeaveIds.has(leaveKey)) {
+          seenLeaveIds.add(leaveKey);
+          uniqueLeaves.push(leave);
+        }
+      });
+      
+      console.log(`🔍 Found ${leaves.length} total leaves for channel ${command.channel_id}`);
+      console.log(`🔍 After deduplication: ${uniqueLeaves.length} unique leaves`);
+      
+      let filteredLeaves = uniqueLeaves;
       
       // Filter by user if specified
       if (targetUser) {
@@ -1085,13 +1099,27 @@ module.exports = (app) => {
         endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      console.log('🔍 Send-reminder: Found', leaves.length, 'leaves for channel', command.channel_id);
+      // Deduplicate leaves - if a leave is both stored in this channel AND notified to this channel,
+      // only show it once (prefer the stored version)
+      const uniqueLeaves = [];
+      const seenLeaveIds = new Set();
+      
       leaves.forEach(leave => {
+        const leaveKey = `${leave.userId}_${leave.startDate.toISOString().split('T')[0]}_${leave.endDate.toISOString().split('T')[0]}_${leave.leaveType}`;
+        if (!seenLeaveIds.has(leaveKey)) {
+          seenLeaveIds.add(leaveKey);
+          uniqueLeaves.push(leave);
+        }
+      });
+      
+      console.log('🔍 Send-reminder: Found', leaves.length, 'leaves for channel', command.channel_id);
+      console.log('🔍 Send-reminder: After deduplication:', uniqueLeaves.length, 'unique leaves');
+      uniqueLeaves.forEach(leave => {
         console.log('🔍 Send-reminder: Leave -', leave.userName, '(', leave.startDate.toISOString().split('T')[0], 'to', leave.endDate.toISOString().split('T')[0], ')');
       });
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
-      const currentLeaves = leaves.filter(leave => {
+      const currentLeaves = uniqueLeaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const startDateStr = startDate.format('YYYY-MM-DD');
         return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today

@@ -93,15 +93,29 @@ class NotificationScheduler {
         endDate: { $gte: today.toDate() }       // Include leaves that end today or later
       }).sort({ startDate: 1 });
       
-      console.log('🔍 Scheduler: Found', leaves.length, 'leaves for channel', channelId);
+      // Deduplicate leaves - if a leave is both stored in this channel AND notified to this channel,
+      // only show it once (prefer the stored version)
+      const uniqueLeaves = [];
+      const seenLeaveIds = new Set();
+      
       leaves.forEach(leave => {
+        const leaveKey = `${leave.userId}_${leave.startDate.toISOString().split('T')[0]}_${leave.endDate.toISOString().split('T')[0]}_${leave.leaveType}`;
+        if (!seenLeaveIds.has(leaveKey)) {
+          seenLeaveIds.add(leaveKey);
+          uniqueLeaves.push(leave);
+        }
+      });
+      
+      console.log('🔍 Scheduler: Found', leaves.length, 'leaves for channel', channelId);
+      console.log('🔍 Scheduler: After deduplication:', uniqueLeaves.length, 'unique leaves');
+      uniqueLeaves.forEach(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney').format('YYYY-MM-DD');
         const endDate = moment(leave.endDate).tz('Australia/Sydney').format('YYYY-MM-DD');
         console.log('🔍 Scheduler: Leave -', leave.userName, '(', startDate, 'to', endDate, ')');
       });
       
       // Show only leaves that start today (not leaves that start tomorrow but overlap with today)
-      const currentLeaves = leaves.filter(leave => {
+      const currentLeaves = uniqueLeaves.filter(leave => {
         const startDate = moment(leave.startDate).tz('Australia/Sydney');
         const startDateStr = startDate.format('YYYY-MM-DD');
         return startDateStr === today.format('YYYY-MM-DD'); // Only leaves that start exactly today
