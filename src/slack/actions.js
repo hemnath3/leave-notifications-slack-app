@@ -4,14 +4,13 @@ const TeamService = require('../services/TeamService');
 const DateUtils = require('../utils/dateUtils');
 
 module.exports = (app) => {
-  console.log('🔍 Loading actions.js module and registering handlers...');
+  // Loading actions.js module and registering handlers...
   
 
   
   // Handle modal submission
   app.view('leave_request_modal', async ({ ack, view, client, body }) => {
-    console.log('🔍 Modal submission handler called');
-    console.log('🔍 Callback ID:', view.callback_id);
+      // Modal submission handler called
     
     // If this is an edit modal, don't handle it here
     if (view.callback_id === 'edit_leave_modal') {
@@ -44,7 +43,6 @@ module.exports = (app) => {
       const values = view.state.values;
       
       // Extract form values with proper error handling
-      console.log('🔍 Form values structure:', JSON.stringify(values, null, 2));
       
       // Extract values using dynamic key lookup (more robust approach)
       const leaveType = values.leave_type?.[Object.keys(values.leave_type || {})[0]]?.selected_option?.value;
@@ -104,29 +102,7 @@ module.exports = (app) => {
         }
       }
       
-      console.log('🔍 Extracted values:', {
-        leaveType,
-        isFullDay,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        reason,
-        reasonLength: reason ? reason.length : 0,
-        reasonTrimmed: reason ? reason.trim() : '',
-        selectedChannels: selectedChannels.map(c => c.value)
-      });
-      
-      console.log('🔍 Modal submission received:', {
-        leaveType,
-        isFullDay,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        reason,
-        metadata
-      });
+      // Extracted form values successfully
       
       // Validate leave type is selected
       if (!leaveType) {
@@ -192,13 +168,6 @@ module.exports = (app) => {
       }
       
       // Reason validation - mandatory for "other" leave type
-      console.log('🔍 Reason validation check:', {
-        leaveType,
-        reason,
-        reasonTrimmed: reason ? reason.trim() : '',
-        isEmpty: !reason || reason.trim() === '',
-        isOtherType: leaveType === 'other'
-      });
       
       // Validate: Reason is mandatory for "other" leave type
       if (leaveType === 'other' && (!reason || reason.trim() === '')) {

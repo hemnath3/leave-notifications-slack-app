@@ -11,8 +11,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// Import routes and models
-const leaveRoutes = require('./routes/leave');
+// Import models
 const Leave = require('./models/Leave');
 const NotificationScheduler = require('./services/scheduler');
 
@@ -25,8 +24,7 @@ expressApp.use(helmet());
 expressApp.use(cors());
 expressApp.use(express.json());
 
-// Serve static files
-expressApp.use(express.static('public'));
+// Note: No static files needed for Slack app
 
 // Rate limiting
 const limiter = rateLimit({
@@ -61,8 +59,7 @@ require('./slack/events')(slackApp);
 require('./slack/actions')(slackApp);
 require('./slack/commands')(slackApp);
 
-// API Routes
-expressApp.use('/api/leaves', leaveRoutes);
+// Note: No REST API routes needed for Slack app
 
 // Note: Using Socket Mode for both development and production
 // This eliminates the need for complex webhook configuration

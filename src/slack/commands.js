@@ -6,11 +6,7 @@ const DateUtils = require('../utils/dateUtils');
 module.exports = (app) => {
   // Command to open leave request modal
   app.command('/notify-leave', async ({ command, ack, client, body }) => {
-  console.log('🔍 /notify-leave command received:', { 
-      user_id: command.user_id, 
-      channel_id: command.channel_id,
-      text: command.text 
-    });
+  // /notify-leave command received
     await ack();
     
     try {
@@ -57,11 +53,7 @@ module.exports = (app) => {
       // Get all channels where user is a member and app is installed
       const userChannels = await TeamService.getUserChannelsWithApp(command.user_id, client);
       
-      console.log(`🔍 User channels found: ${userChannels.length}`, 
-        userChannels.map(c => `#${c.channelName}`));
-      
-      console.log(`🔍 Final channel list: ${userChannels.length} channels`, 
-        userChannels.map(c => `#${c.channelName} (${c.channelId})`));
+      // User channels found and filtered
       
       // Get today's date for the modal in AEST
       const today = DateUtils.getTodayString();
