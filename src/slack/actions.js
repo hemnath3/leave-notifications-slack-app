@@ -298,8 +298,12 @@ module.exports = (app) => {
       // Wait for all team additions to complete (but don't fail if some fail)
       await Promise.allSettled(teamPromises);
       
+      // Get the source channel (first selected channel - should be the current channel)
+      const sourceChannel = selectedChannels[0];
+      const sourceChannelInfo = channelInfo.find(ch => ch.channelId === sourceChannel.value);
+      
       // Create single leave record in source channel with notified channels
-      console.log('🔍 Creating leave with notified channels - Source:', metadata.channelName, '(', metadata.channelId, ')');
+      console.log('🔍 Creating leave with notified channels - Source:', sourceChannelInfo.channelName, '(', sourceChannel.value, ')');
       console.log('🔍 Creating leave with notified channels - Notified to:', channelInfo.map(ch => ch.channelName + '(' + ch.channelId + ')').join(', '));
       
       const leave = new Leave({
@@ -313,8 +317,8 @@ module.exports = (app) => {
         endTime: isFullDay ? '17:00' : endTime,
         isFullDay,
         reason: reason.trim() || '',
-        channelId: metadata.channelId,
-        channelName: metadata.channelName,
+        channelId: sourceChannel.value,
+        channelName: sourceChannelInfo.channelName,
         notifiedChannels: channelInfo.map(ch => ({
           channelId: ch.channelId,
           channelName: ch.channelName
@@ -328,7 +332,7 @@ module.exports = (app) => {
         // Find existing "other" partial-day leaves for the same user, channel, and date
         const existingOtherLeaves = await Leave.find({
           userId: metadata.userId,
-          channelId: metadata.channelId,
+          channelId: sourceChannel.value,
           leaveType: 'other',
           isFullDay: false,
           startDate: { $lte: end },
@@ -358,7 +362,7 @@ module.exports = (app) => {
             // Check for overlap: new start < existing end AND new end > existing start
             if (newStartMinutes < existingEndMinutes && newEndMinutes > existingStartMinutes) {
               await client.chat.postEphemeral({
-                channel: metadata.channelId,
+                channel: sourceChannel.value,
                 user: metadata.userId,
                 text: `❌ Time conflict detected! You already have an "other" leave from ${existingStartTime} to ${existingEndTime} on ${DateUtils.formatDateForDisplay(startDate)}. Please choose a different time period.`
               });
@@ -381,7 +385,7 @@ module.exports = (app) => {
       } catch (error) {
         if (error.code === 11000) {
           // Duplicate key error - user already has a leave of the same type for this date range in this channel
-          console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', metadata.channelId, 'date:', startDate, 'to', endDate, 'type:', leaveType);
+          console.log('❌ Duplicate leave detected for user:', metadata.userId, 'channel:', sourceChannel.value, 'date:', startDate, 'to', endDate, 'type:', leaveType);
           
           // For "other" partial-day leaves, try to save with a slightly modified timestamp to bypass unique constraint
           if (leaveType === 'other' && !isFullDay) {
@@ -408,21 +412,21 @@ module.exports = (app) => {
                 userId: metadata.userId,
                 startDate: { $lte: end },
                 endDate: { $gte: start },
-                channelId: metadata.channelId,
+                channelId: sourceChannel.value,
                 leaveType: leaveType
               });
               
               if (existingLeave) {
                 const existingStart = DateUtils.formatDateForDisplay(existingLeave.startDate);
                 const existingEnd = DateUtils.formatDateForDisplay(existingLeave.endDate);
-                await client.chat.postEphemeral({
-                  channel: metadata.channelId,
-                  user: metadata.userId,
-                  text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
-                });
+                              await client.chat.postEphemeral({
+                channel: sourceChannel.value,
+                user: metadata.userId,
+                text: `❌ You already have a ${leaveType} leave request for ${existingStart} to ${existingEnd} in this channel. You can submit a different leave type for the same date.`
+              });
               } else {
                 await client.chat.postEphemeral({
-                  channel: metadata.channelId,
+                  channel: sourceChannel.value,
                   user: metadata.userId,
                   text: `❌ You already have a ${leaveType} leave request for this date range in this channel. You can submit a different leave type for the same date.`
                 });
@@ -455,7 +459,7 @@ module.exports = (app) => {
         const channelList = channelInfo.map(ch => `${ch.isPrivate ? '🔒' : '#'}${ch.channelName}`).join(', ');
         
         await client.chat.postEphemeral({
-          channel: metadata.channelId,
+          channel: sourceChannel.value,
           user: metadata.userId,
           text: `✅ Your leave notification has been saved successfully!\n\n*Details:*\n• Type: ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}\n• Date: ${startDateStr} - ${endDateStr}\n• Duration: ${duration}\n• Reason: ${reasonDisplay}\n• Notified Channels: ${channelList}\n\nYour leave will be included in the daily reminder at 9 AM for the selected channels.`
         });

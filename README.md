@@ -1,18 +1,16 @@
 # Leave Notifications Slack App
 
-A comprehensive Slack application for managing leave requests with modal forms, approval workflows, and automated daily notifications.
+A comprehensive Slack application for managing leave requests with modal forms and automated daily notifications.
 
 ## Features
 
 - 🏖️ **Multiple Leave Types**: Vacation, wellness, sick, personal, and other
 - 📅 **Flexible Scheduling**: Full day and partial day options with time selection
-- ✅ **Approval Workflow**: Approve/reject leave requests with buttons
 - 📊 **Daily Notifications**: Automated morning summaries sent to channels
-- 📈 **Weekly Reports**: Comprehensive weekly leave summaries
 - 🔍 **Overlap Detection**: Prevents duplicate leave requests
 - 📱 **Slack Commands**: Easy-to-use slash commands
 - 🗄️ **Database Storage**: MongoDB backend for data persistence
-- 🔌 **REST API**: Full API for external integrations
+- 🔒 **Channel Notifications**: Notify multiple channels about leaves
 
 ## Prerequisites
 
